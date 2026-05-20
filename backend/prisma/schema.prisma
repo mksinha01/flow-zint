@@ -1,0 +1,260 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum VoiceStyle {
+  FORMAL
+  CASUAL
+  AGGRESSIVE
+  EMPATHETIC
+}
+
+enum LeadStatus {
+  NEW
+  CALLED
+  QUALIFIED
+  DISQUALIFIED
+  BOOKED
+}
+
+enum CallStatus {
+  QUEUED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  VOICEMAIL
+}
+
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum LeadClass {
+  HOT
+  WARM
+  COLD
+}
+
+enum InsightType {
+  OBJECTION_UNHANDLED
+  WRONG_TONE
+  SCRIPT_TOO_LONG
+  ICP_MISMATCH
+  LOW_ENGAGEMENT
+  TIMING_ISSUE
+  COMPETITOR_MENTION
+  PRICING_PUSHBACK
+}
+
+enum AgentConfigStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  ARCHIVED
+}
+
+// ─── USERS & WORKSPACES ──────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedWorkspaces Workspace[]
+  memberships     WorkspaceMember[]
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner           User              @relation(fields: [ownerId], references: [id])
+  members         WorkspaceMember[]
+  businessContext BusinessContext?
+  documents       BusinessDocument[]
+  agentConfigs    AgentConfig[]
+  leads           Lead[]
+  calls           Call[]
+  bookings        Booking[]
+  learningInsights LearningInsight[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        Role     @default(MEMBER)
+  joinedAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+// ─── BUSINESS ONBOARDING ─────────────────────────────────────────────────────
+
+model BusinessContext {
+  id                 String     @id @default(cuid())
+  workspaceId        String     @unique
+  companyName        String
+  productDescription String     @db.Text
+  targetCustomer     String     @db.Text
+  keyPainPoints      String     @db.Text
+  pricing            String?
+  competitorNames    String?
+  callObjective      String     // "book_demo" | "qualify" | "sell_direct"
+  voiceStyle         VoiceStyle @default(FORMAL)
+  additionalNotes    String?    @db.Text
+  updatedAt          DateTime   @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model BusinessDocument {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  fileName      String
+  fileType      String   // pdf | docx | txt
+  fileUrl       String   // R2 URL
+  extractedText String   @db.Text
+  uploadedAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ─── AI AGENT CONFIGURATION ──────────────────────────────────────────────────
+
+model AgentConfig {
+  id                   String            @id @default(cuid())
+  workspaceId          String
+  version              Int
+  status               AgentConfigStatus @default(DRAFT)
+  systemPrompt         String            @db.Text
+  openingScript        String            @db.Text
+  qualifyingQuestions  Json              // string[]
+  objectionHandlers    Json              // { objection: string, response: string }[]
+  generatedFromInsights Json?            // LearningInsight ids that triggered this version
+  generatedAt          DateTime          @default(now())
+  activatedAt          DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  calls     Call[]
+
+  @@unique([workspaceId, version])
+}
+
+// ─── LEADS ───────────────────────────────────────────────────────────────────
+
+model Lead {
+  id          String     @id @default(cuid())
+  workspaceId String
+  name        String
+  phone       String
+  email       String?
+  company     String?
+  jobTitle    String?
+  status      LeadStatus @default(NEW)
+  notes       String?    @db.Text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  calls     Call[]
+  bookings  Booking[]
+}
+
+// ─── CALLS ───────────────────────────────────────────────────────────────────
+
+model Call {
+  id              String     @id @default(cuid())
+  workspaceId     String
+  leadId          String
+  agentConfigId   String?
+  livekitRoomId   String?
+  status          CallStatus @default(QUEUED)
+  duration        Int?       // seconds
+  recordingUrl    String?    // R2 URL
+  transcript      String?    @db.Text
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime   @default(now())
+
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lead        Lead         @relation(fields: [leadId], references: [id])
+  agentConfig AgentConfig? @relation(fields: [agentConfigId], references: [id])
+  analysis    CallAnalysis?
+  booking     Booking?
+}
+
+model CallAnalysis {
+  id             String    @id @default(cuid())
+  callId         String    @unique
+  workspaceId    String
+  sentiment      Sentiment
+  leadScore      Int       // 1–100
+  classification LeadClass
+  objections     Json      // { text: string, timestamp: number, handled: boolean }[]
+  buyingIntent   Boolean
+  intentReasoning String   @db.Text
+  summary        String    @db.Text
+  createdAt      DateTime  @default(now())
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+}
+
+// ─── LEARNING ENGINE ─────────────────────────────────────────────────────────
+
+model LearningInsight {
+  id               String      @id @default(cuid())
+  workspaceId      String
+  sourceCallIds    Json        // string[] — call IDs that generated this insight
+  insightType      InsightType
+  description      String      @db.Text
+  suggestion       String      @db.Text
+  appliedToVersion Int?        // AgentConfig version that applied this
+  createdAt        DateTime    @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ─── BOOKINGS ────────────────────────────────────────────────────────────────
+
+model Booking {
+  id                    String    @id @default(cuid())
+  workspaceId           String
+  callId                String    @unique
+  leadId                String
+  calendlyEventUri      String?
+  scheduledAt           DateTime?
+  confirmationEmailSent Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  call      Call      @relation(fields: [callId], references: [id])
+  lead      Lead      @relation(fields: [leadId], references: [id])
+}
