@@ -92,7 +92,7 @@ export const getDashboardCharts = async (req: AuthRequest, res: Response): Promi
   // Top objections
   const objectionCounts: Record<string, number> = {};
   analyses.forEach((a) => {
-    const objs = a.objections as Array<{ text: string }>;
+    const objs = (typeof a.objections === "string" ? JSON.parse(a.objections) : a.objections) as Array<{ text: string }>;
     if (Array.isArray(objs)) {
       objs.forEach((obj) => {
         const key = obj.text.toLowerCase().slice(0, 50);

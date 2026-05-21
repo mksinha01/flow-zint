@@ -71,6 +71,7 @@ export const dashboardApi = {
 export const workspacesApi = {
   list: () => api.get('/workspaces'),
   create: (name: string, slug: string) => api.post('/workspaces', { name, slug }),
+  delete: (id: string) => api.delete(`/workspaces/${id}`),
 };
 
 // ─── Leads ────────────────────────────────────────────────────────────────
@@ -92,17 +93,17 @@ export const callsApi = {
 
 // ─── Agent Configs ────────────────────────────────────────────────────────
 export const agentApi = {
-  list: () => api.get('/agent'),
-  get: (id: string) => api.get(`/agent/${id}`),
+  list: () => api.get('/agent/configs'),
+  get: (id: string) => api.get(`/agent/configs/${id}`),
   getActive: () => api.get('/agent/active'),
   generate: () => api.post('/agent/generate'),
-  activate: (id: string) => api.post(`/agent/${id}/activate`),
+  activate: (id: string) => api.post(`/agent/configs/${id}/activate`),
 };
 
 // ─── Business ─────────────────────────────────────────────────────────────
 export const businessApi = {
-  get: () => api.get('/business'),
-  save: (data: Record<string, unknown>) => api.post('/business', data),
+  get: () => api.get('/business/context'),
+  save: (data: Record<string, unknown>) => api.post('/business/context', data),
   uploadDocument: (file: File) => {
     const form = new FormData();
     form.append('file', file);

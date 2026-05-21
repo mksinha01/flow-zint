@@ -69,13 +69,13 @@ jest.mock('../../src/config/logger', () => ({
 import { listCalls, dispatchCall, getCall } from '../../src/controllers/calls.controller';
 
 const mockReq = (overrides = {}): Request =>
-  ({
-    user: { userId: 'u1', workspaceId: 'ws1', email: 'test@test.com' },
-    query: {},
-    params: {},
-    body: {},
-    ...overrides,
-  } as unknown as Request);
+({
+  user: { userId: 'u1', workspaceId: 'ws1', email: 'test@test.com' },
+  query: {},
+  params: {},
+  body: {},
+  ...overrides,
+} as unknown as Request);
 
 const mockRes = (): Response => {
   const res: Partial<Response> = {};

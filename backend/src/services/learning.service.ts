@@ -5,7 +5,7 @@ import {
   improvePersonaFromInsights,
   GeneratedPersona,
   LearningInsightResult,
-} from './openai.service';
+} from './gemini.service';
 import { generateAndSaveAgentConfig } from './persona.service';
 import { env } from '../config/env';
 
@@ -82,7 +82,7 @@ export const runLearningLoop = async (workspaceId: string): Promise<LearningRunR
   await prisma.learningInsight.createMany({
     data: insights.map((insight) => ({
       workspaceId,
-      sourceCallIds: callIds,
+      sourceCallIds: JSON.stringify(callIds),
       insightType: insight.insightType as any,
       description: insight.description,
       suggestion: insight.suggestion,
@@ -95,8 +95,8 @@ export const runLearningLoop = async (workspaceId: string): Promise<LearningRunR
   const currentPersona: GeneratedPersona = {
     systemPrompt: activeConfig.systemPrompt,
     openingScript: activeConfig.openingScript,
-    qualifyingQuestions: activeConfig.qualifyingQuestions as string[],
-    objectionHandlers: activeConfig.objectionHandlers as {
+    qualifyingQuestions: JSON.parse(activeConfig.qualifyingQuestions as string),
+    objectionHandlers: JSON.parse(activeConfig.objectionHandlers as string) as {
       objection: string;
       response: string;
     }[],
@@ -123,9 +123,9 @@ export const runLearningLoop = async (workspaceId: string): Promise<LearningRunR
       status: 'PENDING_REVIEW',
       systemPrompt: improvedPersona.systemPrompt,
       openingScript: improvedPersona.openingScript,
-      qualifyingQuestions: improvedPersona.qualifyingQuestions,
-      objectionHandlers: improvedPersona.objectionHandlers,
-      generatedFromInsights: savedInsights.map((i) => i.id),
+      qualifyingQuestions: JSON.stringify(improvedPersona.qualifyingQuestions),
+      objectionHandlers: JSON.stringify(improvedPersona.objectionHandlers),
+      generatedFromInsights: JSON.stringify(savedInsights.map((i) => i.id)),
     },
   });
 

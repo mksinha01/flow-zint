@@ -26,7 +26,7 @@ export default function LeadsPage() {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
       if (status) params.set("status", status);
-      const { data } = await api.get(`/api/leads?${params}`);
+      const { data } = await api.get(`/leads?${params}`);
       setLeads(data.data.leads);
       setTotal(data.meta?.total ?? 0);
     } catch { /* ignore */ }
@@ -39,7 +39,7 @@ export default function LeadsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post("/api/leads", form);
+      await api.post("/leads", form);
       setShowAddModal(false);
       setForm({ name: "", phone: "", email: "", company: "", jobTitle: "" });
       load();
@@ -54,7 +54,7 @@ export default function LeadsPage() {
         const [name, phone, email, company] = line.split(",").map((s) => s.trim());
         return { name, phone, email, company };
       });
-      await api.post("/api/leads/bulk", { leads: rows });
+      await api.post("/leads/bulk", { leads: rows });
       setShowBulkModal(false);
       setBulkText("");
       load();
@@ -65,7 +65,7 @@ export default function LeadsPage() {
   const handleDispatch = async (leadId: string) => {
     setDispatching(leadId);
     try {
-      await api.post("/api/calls/dispatch", { leadId });
+      await api.post("/calls/dispatch", { leadId });
       load();
     } catch { /* ignore */ }
     finally { setDispatching(null); }
@@ -73,7 +73,7 @@ export default function LeadsPage() {
 
   const handleDelete = async (leadId: string) => {
     if (!confirm("Delete this lead?")) return;
-    await api.delete(`/api/leads/${leadId}`);
+    await api.delete(`/leads/${leadId}`);
     load();
   };
 

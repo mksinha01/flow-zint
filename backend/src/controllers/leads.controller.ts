@@ -111,16 +111,32 @@ export const deleteLead = async (req: AuthRequest, res: Response): Promise<void>
 
 export const bulkImportLeads = async (req: AuthRequest, res: Response): Promise<void> => {
   const workspaceId = req.user!.workspaceId!;
-  const { leads } = req.body as { leads: Array<{ name: string; phone: string; email?: string; company?: string }> };
+  const { leads } = req.body as { leads: Array<any> };
 
   if (!Array.isArray(leads) || leads.length === 0) {
     sendError(res, 'Provide an array of leads');
     return;
   }
 
+  const dataToInsert = leads.map((l) => {
+    const extraDetails = Object.keys(l)
+      .filter(k => !['name', 'phone', 'email', 'company'].includes(k))
+      .map(k => `${k}: ${l[k]}`)
+      .join('\\n');
+      
+    return {
+      workspaceId,
+      name: l.name,
+      phone: l.phone,
+      email: l.email,
+      company: l.company,
+      notes: extraDetails || null
+    };
+  });
+
   const created = await prisma.lead.createMany({
-    data: leads.map((l) => ({ workspaceId, ...l })),
-    skipDuplicates: true,
+    data: dataToInsert,
+    
   });
 
   sendCreated(res, { count: created.count }, `${created.count} leads imported`);

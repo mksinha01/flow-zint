@@ -18,6 +18,7 @@ export interface DispatchCallOptions {
   phoneNumber: string;
   callId: string;
   leadName: string;
+  leadNotes?: string;
   agentConfigId: string;
   workspaceId: string;
   transferTo?: string;
@@ -44,6 +45,7 @@ export const dispatchOutboundCall = async (options: DispatchCallOptions): Promis
     phone_number: options.phoneNumber,
     call_id: options.callId,
     lead_name: options.leadName,
+    lead_notes: options.leadNotes || null,
     agent_config_id: options.agentConfigId,
     workspace_id: options.workspaceId,
     transfer_to: options.transferTo || null,

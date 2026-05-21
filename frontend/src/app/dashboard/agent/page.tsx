@@ -17,8 +17,8 @@ export default function AgentPage() {
     setLoading(true);
     try {
       const [listRes, activeRes] = await Promise.all([
-        api.get("/api/agent/configs"),
-        api.get("/api/agent/active"),
+        api.get("/agent/configs"),
+        api.get("/agent/active"),
       ]);
       setConfigs(listRes.data.data.configs);
       setActiveConfig(activeRes.data.data.config);
@@ -31,7 +31,7 @@ export default function AgentPage() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      await api.post("/api/agent/generate");
+      await api.post("/agent/generate");
       setToast("✓ New agent version generated!");
       load();
     } catch (err: unknown) {
@@ -46,7 +46,7 @@ export default function AgentPage() {
   const handleActivate = async (configId: string) => {
     setActivating(configId);
     try {
-      await api.post(`/api/agent/configs/${configId}/activate`);
+      await api.post(`/agent/configs/${configId}/activate`);
       setToast("✓ Agent activated!");
       load();
     } catch { /* ignore */ }
@@ -57,7 +57,7 @@ export default function AgentPage() {
   };
 
   const handleViewConfig = async (configId: string) => {
-    const { data } = await api.get(`/api/agent/configs/${configId}`);
+    const { data } = await api.get(`/agent/configs/${configId}`);
     setSelectedConfig(data.data.config);
   };
 

@@ -15,8 +15,8 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
-  // OpenAI
-  OPENAI_API_KEY: z.string().startsWith('sk-'),
+  // Gemini
+  GEMINI_API_KEY: z.string(),
 
   // LiveKit
   LIVEKIT_URL: z.string().url(),

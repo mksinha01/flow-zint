@@ -18,7 +18,7 @@ export default function CallsPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (status) params.set("status", status);
-      const { data } = await api.get(`/api/calls?${params}`);
+      const { data } = await api.get(`/calls?${params}`);
       setCalls(data.data.calls);
       setTotal(data.meta?.total ?? 0);
     } catch { /* ignore */ }

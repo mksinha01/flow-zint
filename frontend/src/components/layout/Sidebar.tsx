@@ -41,28 +41,30 @@ export default function Sidebar() {
     <aside
       className="w-60 flex-shrink-0 flex flex-col h-screen sticky top-0"
       style={{
-        background: "rgba(10,10,20,0.95)",
+        background: "var(--bg-card)",
         borderRight: "1px solid var(--border)",
       }}
     >
       {/* Logo */}
       <div className="p-5 mb-2">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold"
-            style={{
-              background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-              boxShadow: "0 0 20px rgba(139,92,246,0.4)",
-            }}
-          >
-            ⚡
-          </div>
-          <div>
-            <div className="text-base font-bold gradient-text">FlowZint</div>
-            <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-              {workspace ? workspace.name : "AI Sales Platform"}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-md shadow-indigo-200"
+              style={{ background: "var(--brand-violet)" }}
+            >
+              ⚡
+            </div>
+            <div>
+              <div className="text-base font-bold" style={{ color: "var(--text-primary)" }}>FlowZint</div>
+              <div className="text-[10px] w-[90px] truncate" style={{ color: "var(--text-muted)" }}>
+                {workspace ? workspace.name : "AI Sales Platform"}
+              </div>
             </div>
           </div>
+          <Link href="/dashboard/workspace/new" className="w-7 h-7 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold hover:bg-indigo-100 transition-colors" title="Create Workspace">
+            +
+          </Link>
         </div>
       </div>
 

@@ -3,7 +3,7 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import prisma from '../config/database';
 import { dispatchOutboundCall } from '../services/livekit.service';
 import { getActiveAgentConfig } from '../services/persona.service';
-import { analyzeCallTranscript } from '../services/openai.service';
+import { analyzeCallTranscript } from '../services/gemini.service';
 import { sendCallSummaryEmail } from '../services/resend.service';
 import { syncLeadToHubSpot } from '../services/crm.service';
 import { sendSuccess, sendCreated, sendError, sendNotFound } from '../utils/response.util';
@@ -71,6 +71,7 @@ export const dispatchCall = async (req: AuthRequest, res: Response): Promise<voi
     phoneNumber: lead.phone,
     callId: call.id,
     leadName: lead.name,
+    leadNotes: lead.notes || undefined,
     agentConfigId: agentConfig.id,
     workspaceId,
   });

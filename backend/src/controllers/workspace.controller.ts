@@ -77,3 +77,29 @@ export const getUserWorkspaces = async (req: AuthRequest, res: Response): Promis
 
   sendSuccess(res, { workspaces });
 };
+
+export const deleteWorkspace = async (req: AuthRequest, res: Response): Promise<void> => {
+  const workspaceId = req.user!.workspaceId!;
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+  });
+
+  if (!workspace) {
+    sendNotFound(res, 'Workspace');
+    return;
+  }
+
+  // Only the owner can delete the workspace
+  if (workspace.ownerId !== req.user!.userId) {
+    res.status(403).json({ success: false, message: 'Only the workspace owner can delete it' });
+    return;
+  }
+
+  await prisma.workspace.delete({
+    where: { id: workspaceId },
+  });
+
+  logger.info(`Workspace deleted: ${workspace.slug} by ${req.user!.email}`);
+  sendSuccess(res, null, 'Workspace deleted successfully');
+};

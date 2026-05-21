@@ -4,6 +4,7 @@ import { logger } from '../config/logger';
 import { extractTextFromFile, getFileType } from '../utils/pdf.util';
 import prisma from '../config/database';
 import { randomUUID } from 'crypto';
+import { env } from '../config/env';
 
 export const uploadDocumentToR2 = async (
   workspaceId: string,
@@ -13,17 +14,24 @@ export const uploadDocumentToR2 = async (
   const key = `workspaces/${workspaceId}/docs/${randomUUID()}-${file.originalname}`;
 
   // Upload to R2
-  await r2Client.send(
-    new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    })
-  );
-
-  const fileUrl = `${R2_PUBLIC_URL}/${key}`;
-  logger.info(`Uploaded document to R2: ${key}`);
+  let fileUrl = `${R2_PUBLIC_URL}/${key}`;
+  try {
+    if (env.R2_ACCOUNT_ID && env.R2_ACCOUNT_ID !== 'your-cloudflare-account-id') {
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: key,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+        })
+      );
+      logger.info(`Uploaded document to R2: ${key}`);
+    } else {
+      logger.warn('Skipping R2 upload: Dummy R2 credentials detected.');
+    }
+  } catch (error) {
+    logger.error(`Failed to upload to R2, proceeding with text extraction only: ${error}`);
+  }
 
   // Extract text for AI processing
   const extractedText = await extractTextFromFile(file.buffer, fileType);

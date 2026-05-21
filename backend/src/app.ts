@@ -91,12 +91,19 @@ const server = app.listen(env.PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received — shutting down gracefully');
+const shutdown = (signal: string) => {
+  logger.info(`${signal} received — shutting down gracefully`);
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);
   });
-});
+  // Force close after 5s
+  setTimeout(() => process.exit(0), 5000).unref();
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+// tsx watch uses SIGUSR2 for hot-reload — close the server before it restarts
+process.on('SIGUSR2', () => shutdown('SIGUSR2'));
 
 export default app;

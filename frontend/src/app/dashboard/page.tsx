@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import api from "@/lib/api";
+import api, { workspacesApi } from "@/lib/api";
 import { StatCard, Skeleton } from "@/components/ui";
 import type { DashboardStats, DashboardCharts } from "@/types";
 import {
@@ -13,21 +13,45 @@ const COLORS = { HOT: "#ef4444", WARM: "#f59e0b", COLD: "#3b82f6" };
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [charts, setCharts] = useState<DashboardCharts | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [workspaces, setWorkspaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const [sRes, cRes] = await Promise.all([
-        api.get("/api/dashboard/stats"),
-        api.get("/api/dashboard/charts"),
+      const [sRes, cRes, wRes] = await Promise.all([
+        api.get("/dashboard/stats").catch(() => ({ data: { data: { stats: null } } })),
+        api.get("/dashboard/charts").catch(() => ({ data: { data: { charts: null } } })),
+        workspacesApi.list().catch(() => ({ data: { data: { workspaces: [] } } })),
       ]);
-      setStats(sRes.data.data.stats);
-      setCharts(cRes.data.data.charts);
+      setStats(sRes.data.data?.stats || null);
+      setCharts(cRes.data.data?.charts || null);
+      setWorkspaces(wRes.data.data?.workspaces || []);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const switchWorkspace = (id: string) => {
+    localStorage.setItem('workspace_id', id);
+    window.location.reload();
+  };
+
+  const handleDeleteWorkspace = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this workspace and all its data? This cannot be undone.')) return;
+    
+    try {
+      await workspacesApi.delete(id);
+      if (localStorage.getItem('workspace_id') === id) {
+        localStorage.removeItem('workspace_id');
+      }
+      window.location.reload();
+    } catch {
+      alert('Failed to delete workspace. Only the owner can delete it.');
+    }
+  };
 
   const callVolumeData = charts
     ? Object.entries(charts.callVolume)
@@ -75,6 +99,46 @@ export default function DashboardPage() {
           >
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
             Agent v{stats.activeAgentVersion} Active
+          </div>
+        )}
+      </div>
+
+      {/* Workspaces List Section */}
+      <div className="mb-8">
+        <h2 className="text-lg font-bold mb-4" style={{ color: "var(--text-primary)" }}>Your Workspaces</h2>
+        {loading ? (
+          <div className="flex gap-4"><Skeleton className="h-28 w-64" /><Skeleton className="h-28 w-64" /></div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {workspaces.map((w) => {
+              const isActive = typeof window !== 'undefined' && localStorage.getItem('workspace_id') === w.id;
+              return (
+                <div key={w.id} 
+                     onClick={() => switchWorkspace(w.id)}
+                     className={`cursor-pointer p-5 rounded-xl border transition-all ${isActive ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-md'}`}>
+                   <div className="flex justify-between items-start mb-2">
+                     <h3 className="font-bold text-slate-800 truncate pr-2">{w.name}</h3>
+                     <div className="flex items-center gap-2">
+                       {isActive && <span className="text-[10px] uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold shrink-0">Active</span>}
+                       <button onClick={(e) => handleDeleteWorkspace(w.id, e)} className="text-slate-400 hover:text-red-500 transition-colors shrink-0" title="Delete Workspace">
+                         🗑️
+                       </button>
+                     </div>
+                   </div>
+                   <p className="text-sm text-slate-500 mb-4 truncate">{w.businessContext?.companyName || 'No business info yet'}</p>
+                   <div className="flex gap-4 text-xs text-slate-500 font-medium">
+                     <div className="flex items-center gap-1.5"><span className="text-base leading-none">👥</span> {w._count?.leads || 0} Leads</div>
+                     <div className="flex items-center gap-1.5"><span className="text-base leading-none">📞</span> {w._count?.calls || 0} Calls</div>
+                   </div>
+                </div>
+              );
+            })}
+            <div 
+              onClick={() => window.location.href = '/dashboard/onboarding'}
+              className="cursor-pointer p-5 rounded-xl border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/30 flex flex-col items-center justify-center text-slate-500 hover:text-indigo-600 transition-colors bg-slate-50/50 min-h-[120px]">
+              <span className="text-2xl mb-1 leading-none">+</span>
+              <span className="font-semibold text-sm">Create Workspace</span>
+            </div>
           </div>
         )}
       </div>

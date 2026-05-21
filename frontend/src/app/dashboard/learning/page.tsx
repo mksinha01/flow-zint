@@ -14,7 +14,7 @@ export default function LearningPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get("/api/learning/history");
+      const { data } = await api.get("/learning/history");
       setInsights(data.data.insights);
       setHistory(data.data.configs);
     } catch { /* ignore */ }
@@ -27,7 +27,7 @@ export default function LearningPage() {
     setRunning(true);
     setResult(null);
     try {
-      const { data } = await api.post("/api/learning/run");
+      const { data } = await api.post("/learning/run");
       setResult({ insightsGenerated: data.data.insightsGenerated, newAgentVersion: data.data.newAgentVersion });
       load();
     } catch { /* ignore */ }

@@ -1,5 +1,5 @@
 import prisma from '../config/database';
-import { generateAgentPersona, GeneratedPersona } from './openai.service';
+import { generateAgentPersona, GeneratedPersona } from './gemini.service';
 import { logger } from '../config/logger';
 
 /**
@@ -23,8 +23,8 @@ export const generateAndSaveAgentConfig = async (workspaceId: string) => {
       status: nextVersion === 1 ? 'ACTIVE' : 'PENDING_REVIEW', // v1 auto-activates
       systemPrompt: persona.systemPrompt,
       openingScript: persona.openingScript,
-      qualifyingQuestions: persona.qualifyingQuestions,
-      objectionHandlers: persona.objectionHandlers,
+      qualifyingQuestions: JSON.stringify(persona.qualifyingQuestions),
+      objectionHandlers: JSON.stringify(persona.objectionHandlers),
     },
   });
 

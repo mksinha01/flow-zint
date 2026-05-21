@@ -30,7 +30,7 @@ export const getBusinessContext = async (req: AuthRequest, res: Response): Promi
   });
 
   if (!context) {
-    sendNotFound(res, 'Business context');
+    sendSuccess(res, { context: null });
     return;
   }
 
