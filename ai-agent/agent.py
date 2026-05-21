@@ -27,6 +27,8 @@ load_dotenv(dotenv_path=".env.local")
 logger = logging.getLogger("outbound-caller")
 logger.setLevel(logging.INFO)
 
+outbound_trunk_id = os.getenv("SIP_OUTBOUND_TRUNK_ID")
+
 class OutboundCaller(Agent):
     def __init__(
         self,
@@ -111,7 +113,7 @@ class OutboundCaller(Agent):
         logger.info(f"booking demo for {self.participant.identity} on {preferred_date} at {preferred_time}")
         
         call_id = self.dial_info.get("call_id")
-        backend_url = os.getenv("BACKEND_URL", "http://localhost:3000")
+        backend_url = os.getenv("BACKEND_URL", "http://localhost:4000")
         internal_key = os.getenv("BACKEND_INTERNAL_KEY", "super-secret-key")
         
         try:
@@ -148,7 +150,7 @@ class OutboundCaller(Agent):
         """
         logger.info(f"qualifying lead {self.participant.identity}: interest={interest_level}")
         call_id = self.dial_info.get("call_id")
-        backend_url = os.getenv("BACKEND_URL", "http://localhost:3000")
+        backend_url = os.getenv("BACKEND_URL", "http://localhost:4000")
         internal_key = os.getenv("BACKEND_INTERNAL_KEY", "super-secret-key")
         
         try:
@@ -183,21 +185,27 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"connecting to room {ctx.room.name}")
     await ctx.connect()
 
-    # The backend dials and joins the participant. We just wait for them.
-    participant = await ctx.wait_for_participant()
-    logger.info(f"participant joined: {participant.identity}")
-
     try:
-        dial_info = json.loads(participant.metadata)
+        dial_info = json.loads(ctx.job.metadata)
+    except json.JSONDecodeError:
+        # Fallback manual parsing if needed
+        metadata = ctx.job.metadata.strip('{} ')
+        dial_info = {}
+        for item in metadata.split(','):
+            if ':' in item:
+                k, v = item.split(':', 1)
+                dial_info[k.strip()] = v.strip().strip('"').strip("'")
+        logger.warning(f"Failed to parse JSON, fell back to manual parsing: {dial_info}")
     except Exception as e:
-        logger.error(f"Failed to parse participant metadata: {participant.metadata}")
+        logger.error(f"Failed to parse job metadata: {e}")
         dial_info = {}
     
     agent_config_id = dial_info.get("agent_config_id")
     lead_name = dial_info.get("lead_name", "there")
     lead_notes = dial_info.get("lead_notes", "")
+    phone_number = dial_info.get("phone_number")
     
-    backend_url = os.getenv("BACKEND_URL", "http://localhost:3000")
+    backend_url = os.getenv("BACKEND_URL", "http://localhost:4000")
     internal_key = os.getenv("BACKEND_INTERNAL_KEY", "super-secret-key")
     
     system_prompt = "You are a helpful AI sales agent."
@@ -238,13 +246,43 @@ async def entrypoint(ctx: JobContext):
         ),
     )
 
+    # Dial the participant using the SIP trunk
+    participant_identity = phone_number
+    try:
+        await ctx.api.sip.create_sip_participant(
+            api.CreateSIPParticipantRequest(
+                room_name=ctx.room.name,
+                sip_trunk_id=outbound_trunk_id,
+                sip_call_to=phone_number,
+                participant_identity=participant_identity,
+                wait_until_answered=True,
+            )
+        )
+        logger.info(f"call answered by {participant_identity}")
+    except api.TwirpError as e:
+        logger.error(
+            f"error creating SIP participant: {e.message}, "
+            f"SIP status: {e.metadata.get('sip_status_code')} "
+            f"{e.metadata.get('sip_status')}"
+        )
+        ctx.shutdown()
+        return
+    except Exception as e:
+        logger.error(f"unexpected error creating SIP participant: {e}")
+        ctx.shutdown()
+        return
+
+    # Start session AFTER call is answered
     await session.start(
         agent=agent,
         room=ctx.room,
         room_input_options=RoomInputOptions(
-            participant_identity=participant.identity,
+            participant_identity=participant_identity,
         ),
     )
+
+    participant = await ctx.wait_for_participant(identity=participant_identity)
+    logger.info(f"participant joined: {participant.identity}")
     agent.set_participant(participant)
 
 if __name__ == "__main__":

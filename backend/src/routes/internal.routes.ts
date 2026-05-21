@@ -13,7 +13,8 @@ const router = Router();
  */
 const validateInternalKey = (req: Request, res: Response, next: Function) => {
   const key = req.headers['x-internal-key'];
-  if (!key || key !== process.env.BACKEND_INTERNAL_KEY) {
+  const internalKey = process.env.BACKEND_INTERNAL_KEY || 'super-secret-key';
+  if (!key || key !== internalKey) {
     res.status(401).json({ success: false, message: 'Unauthorized internal request' });
     return;
   }

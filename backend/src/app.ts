@@ -74,7 +74,7 @@ app.use('/api/leads', leadsRoutes);
 app.use('/api/calls', callsRoutes);
 app.use('/api/learning', learningRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/internal', internalRoutes);
+app.use('/api/internal', internalRoutes);
 
 // ─── API DOCUMENTATION ────────────────────────────────────────────────────────
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
