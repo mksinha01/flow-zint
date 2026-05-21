@@ -11,6 +11,13 @@ const mockPrisma = {
     delete: jest.fn(),
     createMany: jest.fn(),
   },
+  booking: {
+    deleteMany: jest.fn(),
+  },
+  call: {
+    deleteMany: jest.fn(),
+  },
+  $transaction: jest.fn().mockImplementation((promises) => Promise.all(promises)),
 };
 
 jest.mock('../../src/config/database', () => ({
@@ -145,11 +152,15 @@ describe('deleteLead', () => {
     const lead = { id: 'l3', name: 'Charlie' };
     mockPrisma.lead.findFirst.mockResolvedValue(lead);
     mockPrisma.lead.delete.mockResolvedValue(lead);
+    mockPrisma.booking.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.call.deleteMany.mockResolvedValue({ count: 0 });
 
     const req = mockReq({ params: { leadId: 'l3' } });
     const res = mockRes();
     await deleteLead(req as any, res);
 
+    expect(mockPrisma.booking.deleteMany).toHaveBeenCalledWith({ where: { leadId: 'l3' } });
+    expect(mockPrisma.call.deleteMany).toHaveBeenCalledWith({ where: { leadId: 'l3' } });
     expect(mockPrisma.lead.delete).toHaveBeenCalledWith({ where: { id: 'l3' } });
     expect(res.status).toHaveBeenCalledWith(200);
   });

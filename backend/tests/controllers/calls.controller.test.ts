@@ -35,7 +35,7 @@ jest.mock('../../src/services/livekit.service', () => ({
   dispatchOutboundCall: mockDispatchOutboundCall,
 }));
 
-jest.mock('../../src/services/openai.service', () => ({
+jest.mock('../../src/services/gemini.service', () => ({
   analyzeCallTranscript: jest.fn(),
 }));
 

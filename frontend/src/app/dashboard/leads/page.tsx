@@ -16,9 +16,15 @@ export default function LeadsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", company: "", jobTitle: "" });
-  const [bulkText, setBulkText] = useState("");
   const [saving, setSaving] = useState(false);
   const [dispatching, setDispatching] = useState<string | null>(null);
+
+  // CSV Dynamic Mapper States
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvDataRows, setCsvDataRows] = useState<string[][]>([]);
+  const [mappings, setMappings] = useState({ name: "", phone: "", email: "", company: "" });
+  const [errorMsg, setErrorMsg] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,19 +53,137 @@ export default function LeadsPage() {
     finally { setSaving(false); }
   };
 
-  const handleBulkImport = async () => {
-    setSaving(true);
-    try {
-      const rows = bulkText.split("\n").filter(Boolean).map((line) => {
-        const [name, phone, email, company] = line.split(",").map((s) => s.trim());
-        return { name, phone, email, company };
+  const parseCSV = (text: string): string[][] => {
+    const lines: string[][] = [];
+    let row: string[] = [];
+    let inQuotes = false;
+    let entry = "";
+    
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+      
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          entry += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        row.push(entry.trim());
+        entry = "";
+      } else if ((char === '\r' || char === '\n') && !inQuotes) {
+        if (char === '\r' && nextChar === '\n') {
+          i++;
+        }
+        row.push(entry.trim());
+        lines.push(row);
+        row = [];
+        entry = "";
+      } else {
+        entry += char;
+      }
+    }
+    if (entry || row.length > 0) {
+      row.push(entry.trim());
+      lines.push(row);
+    }
+    return lines.filter(r => r.length > 0 && r.some(cell => cell !== ""));
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setErrorMsg("");
+    setCsvFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) {
+        setErrorMsg("Failed to read CSV file content.");
+        return;
+      }
+      
+      const parsed = parseCSV(text);
+      if (parsed.length < 2) {
+        setErrorMsg("CSV file is empty or missing data rows.");
+        return;
+      }
+      
+      const headers = parsed[0];
+      const dataRows = parsed.slice(1);
+      
+      setCsvHeaders(headers);
+      setCsvDataRows(dataRows);
+      
+      // Auto-detect column indices
+      const newMappings = { name: "", phone: "", email: "", company: "" };
+      headers.forEach((h, index) => {
+        const lower = h.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (lower.includes("name") || lower === "fullname" || lower === "leadname") {
+          newMappings.name = String(index);
+        } else if (lower.includes("phone") || lower.includes("mobile") || lower.includes("contact") || lower.includes("number")) {
+          newMappings.phone = String(index);
+        } else if (lower.includes("email") || lower.includes("mail")) {
+          newMappings.email = String(index);
+        } else if (lower.includes("company") || lower.includes("org") || lower.includes("business")) {
+          newMappings.company = String(index);
+        }
       });
+      setMappings(newMappings);
+    };
+    reader.readAsText(file);
+  };
+
+  const resetCsvImport = () => {
+    setCsvFile(null);
+    setCsvHeaders([]);
+    setCsvDataRows([]);
+    setMappings({ name: "", phone: "", email: "", company: "" });
+    setErrorMsg("");
+  };
+
+  const handleBulkImport = async () => {
+    if (!mappings.name || !mappings.phone) {
+      setErrorMsg("Please map both Name and Phone fields.");
+      return;
+    }
+    
+    setSaving(true);
+    setErrorMsg("");
+    try {
+      const rows = csvDataRows.map((row) => {
+        const nameVal = row[Number(mappings.name)] || "";
+        const phoneVal = row[Number(mappings.phone)] || "";
+        const emailVal = mappings.email ? row[Number(mappings.email)] : null;
+        const companyVal = mappings.company ? row[Number(mappings.company)] : null;
+        
+        return {
+          name: nameVal.trim() || "Unnamed",
+          phone: phoneVal.trim(),
+          email: emailVal ? emailVal.trim() || null : null,
+          company: companyVal ? companyVal.trim() || null : null,
+        };
+      }).filter((r) => r.phone && r.phone.trim() !== "");
+      
+      if (rows.length === 0) {
+        setErrorMsg("No valid leads with phone numbers were found after mapping.");
+        setSaving(false);
+        return;
+      }
+      
       await api.post("/leads/bulk", { leads: rows });
       setShowBulkModal(false);
-      setBulkText("");
+      resetCsvImport();
       load();
-    } catch { /* ignore */ }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || "Failed to import leads. Please check CSV format.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDispatch = async (leadId: string) => {
@@ -231,21 +355,137 @@ export default function LeadsPage() {
       </Modal>
 
       {/* Bulk Import Modal */}
-      <Modal open={showBulkModal} onClose={() => setShowBulkModal(false)} title="Bulk Import Leads">
-        <div className="space-y-3">
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Paste CSV rows: <code className="text-violet-400">Name, Phone, Email, Company</code>
-          </p>
-          <textarea
-            className="input-dark resize-none"
-            rows={8}
-            placeholder={"John Smith, +1 555 0001, john@co.com, Acme\nJane Doe, +1 555 0002, jane@co.com, Beta Corp"}
-            value={bulkText}
-            onChange={(e) => setBulkText(e.target.value)}
-          />
-          <button className="btn-primary w-full justify-center" onClick={handleBulkImport} disabled={saving}>
-            {saving ? "Importing..." : `Import ${bulkText.split("\n").filter(Boolean).length} leads`}
-          </button>
+      <Modal open={showBulkModal} onClose={() => { setShowBulkModal(false); resetCsvImport(); }} title="Bulk Import Leads">
+        <div className="space-y-4">
+          {!csvFile ? (
+            <div className="space-y-3">
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                Select a CSV file from your computer to import your leads. You can map custom columns in the next step.
+              </p>
+              
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                id="csv-file-upload"
+                onChange={handleFileSelect}
+              />
+              
+              <label
+                htmlFor="csv-file-upload"
+                className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl cursor-pointer transition-all hover:bg-slate-800/20"
+                style={{ borderColor: "rgba(139,92,246,0.3)", background: "rgba(139,92,246,0.02)" }}
+              >
+                <span className="text-3xl mb-2">📁</span>
+                <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Upload CSV File</span>
+                <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Drag and drop or click to select from local disk</span>
+              </label>
+
+              {errorMsg && (
+                <div className="p-2.5 rounded bg-red-500/10 border border-red-500/20 text-xs font-medium" style={{ color: "#f87171" }}>
+                  ⚠️ {errorMsg}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* File Info */}
+              <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700/50 bg-slate-800/30">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <span className="text-lg">📄</span>
+                  <div className="truncate">
+                    <div className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>{csvFile.name}</div>
+                    <div className="text-[10px]" style={{ color: "var(--text-muted)" }}>{csvDataRows.length} rows loaded</div>
+                  </div>
+                </div>
+                <button
+                  className="text-xs font-medium hover:underline text-red-400"
+                  onClick={resetCsvImport}
+                >
+                  Change
+                </button>
+              </div>
+
+              {/* Column Mapping */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Map CSV Columns</h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: "name", label: "Name *", required: true },
+                    { key: "phone", label: "Phone *", required: true },
+                    { key: "email", label: "Email (Optional)", required: false },
+                    { key: "company", label: "Company (Optional)", required: false }
+                  ].map(({ key, label, required }) => (
+                    <div key={key} className="space-y-1">
+                      <label className="block text-xs font-medium" style={{ color: "var(--text-muted)" }}>{label}</label>
+                      <select
+                        className="input-dark text-xs py-1.5 px-2 w-full"
+                        value={(mappings as any)[key]}
+                        onChange={(e) => setMappings({ ...mappings, [key]: e.target.value })}
+                      >
+                        <option value="">{required ? "-- Select --" : "-- Skip --"}</option>
+                        {csvHeaders.map((header, idx) => (
+                          <option key={idx} value={idx}>
+                            {header || `Column ${idx + 1}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="space-y-2 pt-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Live Preview (First 3 rows)</h4>
+                {mappings.name && mappings.phone ? (
+                  <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+                    {csvDataRows.slice(0, 3).map((row, idx) => {
+                      const previewName = row[Number(mappings.name)] || "Unnamed";
+                      const previewPhone = row[Number(mappings.phone)] || "—";
+                      const previewEmail = mappings.email ? row[Number(mappings.email)] : "";
+                      const previewCompany = mappings.company ? row[Number(mappings.company)] : "";
+                      
+                      return (
+                        <div key={idx} className="p-2 rounded border border-slate-700/30 bg-slate-800/10 text-xs space-y-0.5">
+                          <div className="flex justify-between font-medium">
+                            <span style={{ color: "var(--text-primary)" }}>{previewName}</span>
+                            <span className="font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>{previewPhone}</span>
+                          </div>
+                          {(previewEmail || previewCompany) && (
+                            <div className="text-[10px] flex justify-between" style={{ color: "var(--text-muted)" }}>
+                              <span>{previewCompany || ""}</span>
+                              <span>{previewEmail || ""}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 text-center rounded border border-slate-700/30 bg-slate-800/10 text-xs italic" style={{ color: "var(--text-muted)" }}>
+                    Please select the columns for Name and Phone to display a live preview.
+                  </div>
+                )}
+              </div>
+
+              {errorMsg && (
+                <div className="p-2.5 rounded bg-red-500/10 border border-red-500/20 text-xs font-medium" style={{ color: "#f87171" }}>
+                  ⚠️ {errorMsg}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <button
+                className="btn-primary w-full justify-center mt-2"
+                onClick={handleBulkImport}
+                disabled={saving || !mappings.name || !mappings.phone}
+              >
+                {saving ? "Importing..." : `Import ${csvDataRows.length} Leads`}
+              </button>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

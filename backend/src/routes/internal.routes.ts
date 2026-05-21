@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { createCalendlyBooking } from '../services/calendly.service';
 import { sendBookingConfirmationEmail } from '../services/resend.service';
 import { logger } from '../config/logger';
+import { runCallAnalysis } from '../controllers/calls.controller';
 
 const router = Router();
 
@@ -51,6 +52,13 @@ router.patch('/calls/:callId', async (req: Request, res: Response) => {
       ...(status === 'FAILED' && { endedAt: new Date() }),
     },
   });
+
+  // Trigger analysis if transcript was uploaded or status is COMPLETED
+  if (transcript || status === 'COMPLETED') {
+    runCallAnalysis(callId).catch((err) => {
+      logger.error(`Error in runCallAnalysis from internal PATCH /calls/:callId:`, err);
+    });
+  }
 
   res.json({ success: true });
 });

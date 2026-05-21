@@ -133,11 +133,17 @@ export const deleteLead = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    await prisma.lead.delete({ where: { id: leadId } });
+    // Transactionally delete all child references and then the lead itself to respect SQLite constraints
+    await prisma.$transaction([
+      prisma.booking.deleteMany({ where: { leadId } }),
+      prisma.call.deleteMany({ where: { leadId } }),
+      prisma.lead.delete({ where: { id: leadId } }),
+    ]);
+
     sendSuccess(res, null, 'Lead deleted');
   } catch (error: any) {
     logger.error('Error in deleteLead:', error);
-    sendError(res, 'Cannot delete lead because it has active calls or bookings.', 400, error.message);
+    sendError(res, 'Cannot delete lead due to database constraint.', 400, error.message);
   }
 };
 

@@ -154,75 +154,101 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
       data: { status: 'COMPLETED', endedAt: new Date(), duration },
     });
 
-    // Run analysis if we have a transcript
-    if (call.transcript && call.agentConfig) {
-      try {
-        const businessContext = await prisma.businessContext.findUnique({
-          where: { workspaceId: call.workspaceId },
-        });
-
-        const analysisResult = await analyzeCallTranscript(call.transcript, {
-          companyName: businessContext?.companyName || 'the company',
-          productDescription: businessContext?.productDescription || '',
-          callObjective: businessContext?.callObjective || 'qualify',
-        });
-
-        const analysis = await prisma.callAnalysis.create({
-          data: {
-            callId,
-            workspaceId: call.workspaceId,
-            ...analysisResult,
-            objections: analysisResult.objections as any,
-          },
-        });
-
-        // Update lead status based on classification
-        const newStatus =
-          analysisResult.classification === 'HOT' ? 'QUALIFIED' :
-          analysisResult.classification === 'COLD' ? 'DISQUALIFIED' : 'CALLED';
-
-        await prisma.lead.update({
-          where: { id: call.leadId },
-          data: { status: newStatus },
-        });
-
-        // Send summary email + CRM sync (non-blocking)
-        const workspace = await prisma.workspace.findUnique({
-          where: { id: call.workspaceId },
-          include: { owner: { select: { email: true, name: true } } },
-        });
-
-        if (workspace?.owner) {
-          sendCallSummaryEmail({
-            toEmail: workspace.owner.email,
-            toName: workspace.owner.name,
-            leadName: call.lead.name,
-            leadPhone: call.lead.phone,
-            summary: analysisResult.summary,
-            leadScore: analysisResult.leadScore,
-            classification: analysisResult.classification,
-            sentiment: analysisResult.sentiment,
-            buyingIntent: analysisResult.buyingIntent,
-            callDuration: duration,
-          }).catch(() => {});
-
-          syncLeadToHubSpot({
-            name: call.lead.name,
-            email: call.lead.email || undefined,
-            phone: call.lead.phone,
-            company: call.lead.company || undefined,
-            leadScore: analysisResult.leadScore,
-            classification: analysisResult.classification,
-            notes: analysisResult.summary,
-          }).catch(() => {});
-        }
-
-        logger.info(`Call ${callId} analyzed: score=${analysisResult.leadScore} (${analysisResult.classification})`);
-      } catch (err) {
-        logger.error(`Failed to analyze call ${callId}:`, err);
-      }
-    }
+    // Run analysis asynchronously
+    runCallAnalysis(callId).catch((err) => {
+      logger.error(`Error in runCallAnalysis from webhook:`, err);
+    });
   }
 
   res.sendStatus(200);
+};
+
+export const runCallAnalysis = async (callId: string): Promise<void> => {
+  try {
+    // Check if analysis already exists to avoid duplicate work
+    const existingAnalysis = await prisma.callAnalysis.findUnique({
+      where: { callId },
+    });
+    if (existingAnalysis) {
+      logger.info(`Call ${callId} already analyzed.`);
+      return;
+    }
+
+    const call = await prisma.call.findUnique({
+      where: { id: callId },
+      include: {
+        lead: true,
+        agentConfig: true,
+      },
+    });
+
+    if (!call || !call.transcript || !call.agentConfig) {
+      logger.info(`Skipping analysis for call ${callId}: call found=${!!call}, transcript length=${call?.transcript?.length || 0}`);
+      return;
+    }
+
+    const businessContext = await prisma.businessContext.findUnique({
+      where: { workspaceId: call.workspaceId },
+    });
+
+    const analysisResult = await analyzeCallTranscript(call.transcript, {
+      companyName: businessContext?.companyName || 'the company',
+      productDescription: businessContext?.productDescription || '',
+      callObjective: businessContext?.callObjective || 'qualify',
+    });
+
+    await prisma.callAnalysis.create({
+      data: {
+        callId,
+        workspaceId: call.workspaceId,
+        ...analysisResult,
+        objections: JSON.stringify(analysisResult.objections),
+      },
+    });
+
+    // Update lead status based on classification
+    const newStatus =
+      analysisResult.classification === 'HOT' ? 'QUALIFIED' :
+      analysisResult.classification === 'COLD' ? 'DISQUALIFIED' : 'CALLED';
+
+    await prisma.lead.update({
+      where: { id: call.leadId },
+      data: { status: newStatus },
+    });
+
+    // Send summary email + CRM sync (non-blocking)
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: call.workspaceId },
+      include: { owner: { select: { email: true, name: true } } },
+    });
+
+    if (workspace?.owner) {
+      sendCallSummaryEmail({
+        toEmail: workspace.owner.email,
+        toName: workspace.owner.name,
+        leadName: call.lead.name,
+        leadPhone: call.lead.phone,
+        summary: analysisResult.summary,
+        leadScore: analysisResult.leadScore,
+        classification: analysisResult.classification,
+        sentiment: analysisResult.sentiment,
+        buyingIntent: analysisResult.buyingIntent,
+        callDuration: call.duration || 0,
+      }).catch(() => {});
+
+      syncLeadToHubSpot({
+        name: call.lead.name,
+        email: call.lead.email || undefined,
+        phone: call.lead.phone,
+        company: call.lead.company || undefined,
+        leadScore: analysisResult.leadScore,
+        classification: analysisResult.classification,
+        notes: analysisResult.summary,
+      }).catch(() => {});
+    }
+
+    logger.info(`Call ${callId} successfully analyzed: score=${analysisResult.leadScore} (${analysisResult.classification})`);
+  } catch (err) {
+    logger.error(`Failed to analyze call ${callId}:`, err);
+  }
 };

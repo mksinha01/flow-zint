@@ -290,14 +290,65 @@ const analysisSchema = z.object({
   summary: z.string(),
 });
 
+const buildFallbackAnalysis = (transcript: string): CallAnalysisResult => {
+  const lower = transcript.toLowerCase();
+  
+  // Heuristic sentiment
+  let sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' = 'NEUTRAL';
+  if (lower.includes('not interested') || lower.includes('wrong number') || lower.includes('busy') || lower.includes('stop') || lower.includes('don\'t call')) {
+    sentiment = 'NEGATIVE';
+  } else if (lower.includes('great') || lower.includes('perfect') || lower.includes('excellent') || lower.includes('yes') || (lower.includes('interested') && !lower.includes('not interested'))) {
+    sentiment = 'POSITIVE';
+  }
+
+  // Heuristic score
+  let leadScore = 55; // default warm
+  if (lower.includes('not interested') || lower.includes('wrong number') || lower.includes('busy') || lower.includes('stop') || lower.includes('don\'t call')) {
+    leadScore = 20; // COLD
+  } else if (lower.includes('book') || lower.includes('demo') || lower.includes('buy') || (lower.includes('interested') && !lower.includes('not interested'))) {
+    leadScore = 85; // HOT
+  }
+
+  const classification = leadScore >= 80 ? 'HOT' : leadScore >= 50 ? 'WARM' : 'COLD';
+  const buyingIntent = leadScore >= 70;
+
+  // Find simple objections
+  const objections: CallAnalysisResult['objections'] = [];
+  if (lower.includes('expensive') || lower.includes('budget') || lower.includes('pricing')) {
+    objections.push({ text: 'Pricing/Budget pushback', timestamp: 30, handled: lower.includes('roi') || lower.includes('roi calculation') });
+  }
+  if (lower.includes('busy') || lower.includes('no time') || lower.includes('timing')) {
+    objections.push({ text: 'Timing / Busy', timestamp: 15, handled: true });
+  }
+
+  const summary = `Local fallback analysis: The contact engaged in a call. ${
+    classification === 'HOT' 
+      ? 'The lead expressed strong interest and agreed to next steps or demo booking.' 
+      : classification === 'WARM' 
+      ? 'The lead showed moderate interest but needs further follow-up.' 
+      : 'The lead was unqualified or showed no interest.'
+  }`;
+
+  return {
+    sentiment,
+    leadScore,
+    classification,
+    objections,
+    buyingIntent,
+    intentReasoning: 'Heuristic-based fallback analysis generated locally.',
+    summary,
+  };
+};
+
 export const analyzeCallTranscript = async (
   transcript: string,
   businessContext: { companyName: string; productDescription: string; callObjective: string },
 ): Promise<CallAnalysisResult> => {
-  const prompt = ChatPromptTemplate.fromMessages([
-    [
-      'system',
-      `You are an expert sales call analyst for {companyName}.
+  try {
+    const prompt = ChatPromptTemplate.fromMessages([
+      [
+        'system',
+        `You are an expert sales call analyst for {companyName}.
 They sell: {productDescription}
 Call objective: {callObjective}
 
@@ -305,20 +356,27 @@ Scoring guide:
 - 80-100: HOT — strong interest, budget confirmed, decision maker, clear timeline
 - 50-79: WARM — some interest, needs nurturing, follow-up recommended
 - 1-49: COLD — no interest, wrong fit, or no engagement`,
-    ],
-    ['human', 'Analyze this sales call transcript:\n\n{transcript}'],
-  ]);
+      ],
+      ['human', 'Analyze this sales call transcript:\n\n{transcript}'],
+    ]);
 
-  const chain = prompt.pipe(getModel('gemini-2.0-flash').withStructuredOutput(analysisSchema));
+    const chain = prompt.pipe(getModel('gemini-2.0-flash').withStructuredOutput(analysisSchema));
 
-  const result = await chain.invoke({
-    companyName: businessContext.companyName,
-    productDescription: businessContext.productDescription,
-    callObjective: businessContext.callObjective,
-    transcript,
-  });
+    const result = await chain.invoke({
+      companyName: businessContext.companyName,
+      productDescription: businessContext.productDescription,
+      callObjective: businessContext.callObjective,
+      transcript,
+    });
 
-  return result as CallAnalysisResult;
+    return result as CallAnalysisResult;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn(`Gemini API unavailable for call transcript analysis: ${msg}`);
+    logger.info(`Falling back to local heuristic analysis`);
+    
+    return buildFallbackAnalysis(transcript);
+  }
 };
 
 // ─── Learning Insights ────────────────────────────────────────────────────────

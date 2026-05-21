@@ -2,9 +2,19 @@ import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import prisma from '../config/database';
 import { sendSuccess } from '../utils/response.util';
+import { runCallAnalysis } from './calls.controller';
 
 export const getDashboardStats = async (req: AuthRequest, res: Response): Promise<void> => {
   const workspaceId = req.user!.workspaceId!;
+
+  // Retro-analyze any completed calls with transcripts but missing analysis
+  const unanalyzed = await prisma.call.findMany({
+    where: { workspaceId, status: 'COMPLETED', transcript: { not: null }, analysis: null },
+    select: { id: true }
+  });
+  if (unanalyzed.length > 0) {
+    Promise.all(unanalyzed.map(c => runCallAnalysis(c.id).catch(() => {}))).catch(() => {});
+  }
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -65,6 +75,15 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
 
 export const getDashboardCharts = async (req: AuthRequest, res: Response): Promise<void> => {
   const workspaceId = req.user!.workspaceId!;
+
+  // Retro-analyze any completed calls with transcripts but missing analysis
+  const unanalyzed = await prisma.call.findMany({
+    where: { workspaceId, status: 'COMPLETED', transcript: { not: null }, analysis: null },
+    select: { id: true }
+  });
+  if (unanalyzed.length > 0) {
+    Promise.all(unanalyzed.map(c => runCallAnalysis(c.id).catch(() => {}))).catch(() => {});
+  }
 
   // Call volume by day (last 14 days)
   const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
