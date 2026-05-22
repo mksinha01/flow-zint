@@ -71,6 +71,7 @@ export const dashboardApi = {
 export const workspacesApi = {
   list: () => api.get('/workspaces'),
   create: (name: string, slug: string) => api.post('/workspaces', { name, slug }),
+  update: (id: string, name: string) => api.put(`/workspaces/${id}`, { name }),
   delete: (id: string) => api.delete(`/workspaces/${id}`),
 };
 

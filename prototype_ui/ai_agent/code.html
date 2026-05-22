@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FlowZint - AI Agent Configuration</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=Geist+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#e2dfff",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "on-surface-variant": "#464555",
+                        "secondary-container": "#dae2fd",
+                        "surface-bright": "#f7f9fb",
+                        "on-tertiary-fixed-variant": "#5a00c6",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed-dim": "#d2bbff",
+                        "surface-variant": "#e0e3e5",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "surface": "#f7f9fb",
+                        "on-primary": "#ffffff",
+                        "surface-container": "#eceef0",
+                        "outline": "#777587",
+                        "on-tertiary-fixed": "#25005a",
+                        "surface-container-highest": "#e0e3e5",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "on-surface": "#191c1e",
+                        "tertiary": "#5c00ca",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-dim": "#d8dadc",
+                        "on-primary-container": "#dad7ff",
+                        "primary-container": "#4f46e5",
+                        "error-container": "#ffdad6",
+                        "primary": "#3525cd",
+                        "surface-container-low": "#f2f4f6",
+                        "background": "#f7f9fb",
+                        "on-background": "#191c1e",
+                        "outline-variant": "#c7c4d8",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-tint": "#4d44e3",
+                        "secondary-fixed": "#dae2fd",
+                        "inverse-surface": "#2d3133",
+                        "on-tertiary-container": "#e4d4ff",
+                        "on-secondary-fixed": "#131b2e",
+                        "on-primary-fixed": "#0f0069",
+                        "tertiary-container": "#7531e6",
+                        "secondary": "#565e74",
+                        "on-secondary-container": "#5c647a",
+                        "inverse-primary": "#c3c0ff",
+                        "tertiary-fixed": "#eaddff",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#bec6e0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "unit": "4px",
+                        "gutter": "20px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-sm": ["Inter", "sans-serif"],
+                        "display-lg-mobile": ["Inter", "sans-serif"],
+                        "label-caps": ["Inter", "sans-serif"],
+                        "body-base": ["Inter", "sans-serif"],
+                        "headline-md": ["Inter", "sans-serif"],
+                        "body-bold": ["Inter", "sans-serif"],
+                        "caption": ["Inter", "sans-serif"],
+                        "display-lg": ["Inter", "sans-serif"],
+                        "mono": ["Geist Mono", "monospace"]
+                    },
+                    "fontSize": {
+                        "headline-sm": ["16px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "display-lg-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "800" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-base": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["18px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-bold": ["14px", { "lineHeight": "20px", "fontWeight": "600" }],
+                        "caption": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "display-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "800" }]
+                    },
+                    "boxShadow": {
+                        "level-1": "0 1px 3px rgba(0,0,0,0.05)",
+                        "level-2": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                        "level-3": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .input-focus-ring:focus-within {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        .ai-container {
+            background-color: rgba(99,102,241,0.08);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-base h-screen overflow-hidden flex">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[240px] bg-surface-container-lowest border-r border-outline-variant shadow-sm z-20 hidden md:flex flex-col py-lg px-md">
+<div class="mb-xl flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-[28px]" data-weight="fill">token</span>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">FlowZint</h1>
+<p class="font-caption text-caption text-on-surface-variant">Sales Intelligence</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-xs">
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant font-body-base hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant font-body-base hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">person_search</span>
+                Leads
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant font-body-base hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">call</span>
+                Calls
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded text-primary font-body-bold bg-primary-container/10" href="#">
+<span class="material-symbols-outlined text-[20px]" data-weight="fill">smart_toy</span>
+                AI Agent
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant font-body-base hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">psychology</span>
+                Learning Loop
+            </a>
+</nav>
+<div class="mt-auto flex flex-col gap-md border-t border-outline-variant pt-md">
+<nav class="flex flex-col gap-xs">
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant font-body-base hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+                    Settings
+                </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant font-body-base hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+                    Support
+                </a>
+</nav>
+<button class="w-full bg-primary-container text-on-primary font-body-bold py-sm rounded hover:-translate-y-[1px] transition-transform">
+                Upgrade Plan
+            </button>
+</div>
+</aside>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col md:ml-[240px] h-full overflow-hidden">
+<!-- TopNavBar -->
+<header class="bg-surface h-16 w-full flex justify-between items-center px-lg border-b border-outline-variant z-10 shrink-0">
+<div class="md:hidden flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-weight="fill">token</span>
+<span class="font-headline-md text-headline-md font-extrabold text-primary">FlowZint</span>
+</div>
+<div class="hidden md:flex flex-1 items-center max-w-md ml-lg">
+<!-- Left Search Bar Placeholder for alignment if search_bar was fully implemented here, keeping it clean for AI agent focus -->
+</div>
+<div class="flex items-center gap-md ml-auto">
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:ring-2 ring-primary/10 rounded-full p-1">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors focus:ring-2 ring-primary/10 rounded-full p-1">
+<span class="material-symbols-outlined">help</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-surface-container-high overflow-hidden border border-outline-variant cursor-pointer">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional headshot of a person looking directly at the camera. The lighting is soft and high-key, complementing the modern corporate aesthetic. The background is a clean, neutral white or very light gray. The person is dressed in modern business casual attire, fitting for a sophisticated tech or sales platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlWJPVzK1uQ2NV7OD93FzYpMSGLMtaaUIiXDrVVwap0Js3TiqZ7K7918UJvyovLteoKn4T72e8wgAv6dT9ZnrLUmJHZbqTZMKW1GaIqSZTvE_zYjRObtSAREvOLnshXy3yQtHEt3E0izkEctPzMuaFnqfcLTQ5ad_2HKTtv52BOk8CxKD-3tOOC7RA6gbeQ6kJ9fqexNH4601GdeacDYfJfc1KxhTBSVZcr7jJ9lcSTClnv-8d_7kZQCC8DJTsWnzrbpwlr331TJ8"/>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 overflow-y-auto p-md md:p-lg bg-background">
+<div class="max-w-container-max mx-auto space-y-gutter">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-sm mb-xl">
+<div>
+<h2 class="font-display-lg text-display-lg text-on-surface md:font-display-lg-mobile md:text-display-lg-mobile">Agent Configuration</h2>
+<p class="font-body-base text-body-base text-on-surface-variant mt-1">Manage rules, persona, and monitor active learning loops.</p>
+</div>
+<div class="flex items-center gap-sm">
+<span class="inline-flex items-center gap-xs bg-[#dbeafe] text-[#2563eb] px-sm py-[2px] rounded-full font-label-caps text-label-caps">
+<span class="w-2 h-2 rounded-full bg-[#2563eb] animate-pulse"></span>
+                            Agent v2 Active
+                        </span>
+<button class="bg-primary-container text-on-primary px-4 py-2 rounded font-body-bold hover:-translate-y-[1px] transition-transform">
+                            Save Changes
+                        </button>
+</div>
+</div>
+<!-- Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Left Column: Config & Persona -->
+<div class="lg:col-span-8 flex flex-col gap-gutter">
+<!-- Persona Settings Card -->
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-level-1 p-[20px] transition-all hover:border-[#cbd5e1] hover:shadow-level-2">
+<div class="flex justify-between items-center mb-md border-b border-surface-variant pb-sm">
+<h3 class="font-label-caps text-label-caps text-on-surface uppercase tracking-widest">Persona Definition</h3>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">person_check</span>
+</div>
+<div class="space-y-md">
+<div class="flex flex-col gap-xs input-focus-ring rounded">
+<label class="font-body-bold text-body-bold text-on-surface">Agent Name</label>
+<input class="border border-outline-variant rounded px-[14px] py-[10px] font-body-base text-body-base bg-surface-container-lowest outline-none transition-colors" type="text" value="Zint Assistant"/>
+</div>
+<div class="flex flex-col gap-xs input-focus-ring rounded">
+<label class="font-body-bold text-body-bold text-on-surface">Primary Objective</label>
+<select class="border border-outline-variant rounded px-[14px] py-[10px] font-body-base text-body-base bg-surface-container-lowest outline-none transition-colors">
+<option>Qualify Inbound Leads (B2B SaaS)</option>
+<option>Schedule Discovery Calls</option>
+<option>Re-engage Cold Pipeline</option>
+</select>
+</div>
+<div class="flex flex-col gap-xs input-focus-ring rounded">
+<label class="font-body-bold text-body-bold text-on-surface">System Prompt override</label>
+<textarea class="border border-outline-variant rounded px-[14px] py-[10px] font-mono text-caption bg-surface-container-low outline-none transition-colors resize-none" rows="4">You are an expert SDR for FlowZint. Your goal is to gather BANT (Budget, Authority, Need, Timeline) criteria before proposing a meeting. Maintain a professional, consultative tone. Do not use emojis.</textarea>
+</div>
+</div>
+</div>
+<!-- Guardrails Card -->
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-level-1 p-[20px] transition-all hover:border-[#cbd5e1] hover:shadow-level-2">
+<div class="flex justify-between items-center mb-md border-b border-surface-variant pb-sm">
+<h3 class="font-label-caps text-label-caps text-on-surface uppercase tracking-widest">Operational Guardrails</h3>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">shield</span>
+</div>
+<div class="space-y-sm">
+<label class="flex items-center justify-between p-sm hover:bg-surface-container-low rounded cursor-pointer transition-colors">
+<div>
+<div class="font-body-bold text-body-bold text-on-surface">Require Human Handoff</div>
+<div class="font-caption text-caption text-on-surface-variant">Transfer to rep if sentiment is highly negative</div>
+</div>
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-primary-container z-10 checked:right-0 checked:border-primary-container" id="toggle1" name="toggle" style="right:0; border-color: #4f46e5;" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary-container cursor-pointer" for="toggle1"></label>
+</div>
+</label>
+<label class="flex items-center justify-between p-sm hover:bg-surface-container-low rounded cursor-pointer transition-colors">
+<div>
+<div class="font-body-bold text-body-bold text-on-surface">Strict Schedule Adherence</div>
+<div class="font-caption text-caption text-on-surface-variant">Only propose meeting times during rep working hours</div>
+</div>
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 checked:right-0 checked:border-primary-container" id="toggle2" name="toggle" style="right:0; border-color: #4f46e5;" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-primary-container cursor-pointer" for="toggle2"></label>
+</div>
+</label>
+</div>
+</div>
+</div>
+<!-- Right Column: Learning Loop & Status -->
+<div class="lg:col-span-4 flex flex-col gap-gutter">
+<!-- Performance Status -->
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-level-1 p-[20px] transition-all hover:border-[#cbd5e1] hover:shadow-level-2">
+<div class="flex justify-between items-center mb-md border-b border-surface-variant pb-sm">
+<h3 class="font-label-caps text-label-caps text-on-surface uppercase tracking-widest">Model Health</h3>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">monitor_heart</span>
+</div>
+<div class="flex justify-center my-lg relative">
+<!-- Simulated SVG Ring -->
+<svg class="-rotate-90" height="120" viewbox="0 0 120 120" width="120">
+<circle cx="60" cy="60" fill="none" r="54" stroke="#e0e3e5" stroke-width="8"></circle>
+<circle class="transition-all duration-1000" cx="60" cy="60" fill="none" r="54" stroke="#4f46e5" stroke-dasharray="339.29" stroke-dashoffset="40" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-display-lg text-display-lg text-primary">88%</span>
+<span class="font-caption text-caption text-on-surface-variant">Accuracy</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-sm text-center">
+<div class="bg-surface-container-low p-sm rounded">
+<div class="font-headline-md text-headline-md text-on-surface">1,204</div>
+<div class="font-caption text-caption text-on-surface-variant">Conversations</div>
+</div>
+<div class="bg-surface-container-low p-sm rounded">
+<div class="font-headline-md text-headline-md text-on-surface">342</div>
+<div class="font-caption text-caption text-on-surface-variant">Meetings Booked</div>
+</div>
+</div>
+</div>
+<!-- Learning Loop Feedback Area -->
+<div class="bg-surface-container-lowest rounded-lg border border-outline-variant shadow-level-1 p-[20px] transition-all hover:border-[#cbd5e1] hover:shadow-level-2 flex-1 flex flex-col">
+<div class="flex justify-between items-center mb-md border-b border-surface-variant pb-sm">
+<h3 class="font-label-caps text-label-caps text-on-surface uppercase tracking-widest">Learning Loop</h3>
+<span class="material-symbols-outlined text-primary text-[20px]">model_training</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant mb-md">Review recent marginal interactions to improve agent guidelines.</p>
+<div class="flex-1 overflow-y-auto space-y-md">
+<!-- Feedback Item -->
+<div class="ai-container rounded p-sm border border-primary-fixed-dim/30">
+<div class="flex justify-between items-start mb-xs">
+<span class="font-mono text-[10px] text-tertiary">ID: #4092-A</span>
+<span class="bg-[#fef3c7] text-[#d97706] px-2 py-[2px] rounded text-[10px] font-bold">Needs Review</span>
+</div>
+<p class="font-body-base text-body-base text-on-surface italic text-sm mb-sm border-l-2 border-primary pl-2">"Agent failed to identify budget constraint early enough in the conversation flow."</p>
+<div class="flex gap-xs">
+<button class="flex-1 bg-surface-container-lowest border border-outline-variant text-on-surface font-caption py-1 rounded hover:bg-surface-container-low transition-colors text-center">
+                                            View Transcript
+                                        </button>
+<button class="flex-1 bg-primary text-on-primary font-caption py-1 rounded hover:bg-primary-container transition-colors text-center">
+                                            Train Model
+                                        </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -5,15 +5,23 @@ import Link from 'next/link';
 import { callsApi } from '@/lib/api';
 import type { Call, Objection } from '@/types';
 
-export default function CallDetailPage() {
-  const { id } = useParams<{ id: string }>();
+export default function WorkspaceCallDetailPage() {
+  const params = useParams();
+  const workspaceId = params?.id as string;
+  const callId = params?.callId as string;
+
   const [call, setCall] = useState<Call | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'analysis' | 'transcript'>('analysis');
 
   useEffect(() => {
-    callsApi.get(id).then(r => setCall(r.data.data.call)).catch(console.error).finally(() => setLoading(false));
-  }, [id]);
+    if (callId) {
+      callsApi.get(callId)
+        .then(r => setCall(r.data.data.call))
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [callId]);
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><div className="spinner" /></div>;
   if (!call) return <div className="empty-state"><p>Call not found</p></div>;
@@ -27,9 +35,9 @@ export default function CallDetailPage() {
       <div className="page-header">
         <div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <Link href="/dashboard/calls" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Calls</Link>
+            <Link href={`/dashboard/workspace/${workspaceId}/calls`} style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>← Calls</Link>
             <span style={{ color: 'var(--text-muted)' }}>/</span>
-            <Link href={`/dashboard/leads/${call.leadId}`} style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>{call.lead?.name}</Link>
+            <Link href={`/dashboard/workspace/${workspaceId}/leads/${call.leadId}`} style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>{call.lead?.name}</Link>
           </div>
           <h1 className="page-title">Call Detail</h1>
           <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
