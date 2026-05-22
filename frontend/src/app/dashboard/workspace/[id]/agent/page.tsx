@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import api from "@/lib/api";
+import api, { agentApi } from "@/lib/api";
 import type { AgentConfig } from "@/types";
 import {
   Bot, Zap, Activity, RefreshCw, UserCheck, Shield, ChevronRight,
@@ -59,21 +59,21 @@ export default function WorkspaceAgentPage() {
     setLoading(true);
     try {
       const [listRes, activeRes] = await Promise.all([
-        api.get("/agent/configs"),
-        api.get("/agent/active"),
+        agentApi.list(workspaceId),
+        agentApi.getActive(workspaceId),
       ]);
       setConfigs(listRes.data.data.configs);
       setActiveConfig(activeRes.data.data.config);
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, []);
+  }, [workspaceId]);
 
   useEffect(() => { if (workspaceId) load(); }, [load, workspaceId]);
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      await api.post("/agent/generate");
+      await agentApi.generate(workspaceId);
       showToast("New agent version generated!");
       load();
     } catch (err: unknown) {
@@ -84,13 +84,13 @@ export default function WorkspaceAgentPage() {
 
   const handleActivate = async (configId: string) => {
     setActivating(configId);
-    try { await api.post(`/agent/configs/${configId}/activate`); showToast("Agent activated!"); load(); }
+    try { await agentApi.activate(configId, workspaceId); showToast("Agent activated!"); load(); }
     catch { /* ignore */ }
     finally { setActivating(null); }
   };
 
   const handleViewConfig = async (configId: string) => {
-    const { data } = await api.get(`/agent/configs/${configId}`);
+    const { data } = await agentApi.get(configId, workspaceId);
     setSelectedConfig(data.data.config);
   };
 

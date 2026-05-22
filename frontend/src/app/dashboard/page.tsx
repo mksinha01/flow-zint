@@ -143,7 +143,7 @@ export default function WorkspacesPage() {
 
           {/* Create workspace card */}
           <div
-            onClick={() => router.push("/dashboard/onboarding")}
+            onClick={() => router.push("/dashboard/workspace/new")}
             className="cursor-pointer p-6 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 flex flex-col items-center justify-center gap-2 text-[#777587] hover:text-indigo-600 transition-all duration-200 min-h-[200px]"
           >
             <div className="w-12 h-12 rounded-full border-2 border-dashed border-current flex items-center justify-center">

@@ -94,11 +94,36 @@ export const callsApi = {
 
 // ─── Agent Configs ────────────────────────────────────────────────────────
 export const agentApi = {
-  list: () => api.get('/agent/configs'),
-  get: (id: string) => api.get(`/agent/configs/${id}`),
-  getActive: () => api.get('/agent/active'),
-  generate: () => api.post('/agent/generate'),
-  activate: (id: string) => api.post(`/agent/configs/${id}/activate`),
+  list: (workspaceId?: string) => {
+    const wsId = workspaceId || localStorage.getItem('workspace_id');
+    return wsId 
+      ? api.get(`/workspaces/${wsId}/agent/configs`)
+      : api.get('/agent/configs');
+  },
+  get: (id: string, workspaceId?: string) => {
+    const wsId = workspaceId || localStorage.getItem('workspace_id');
+    return wsId
+      ? api.get(`/workspaces/${wsId}/agent/configs/${id}`)
+      : api.get(`/agent/configs/${id}`);
+  },
+  getActive: (workspaceId?: string) => {
+    const wsId = workspaceId || localStorage.getItem('workspace_id');
+    return wsId
+      ? api.get(`/workspaces/${wsId}/agent/active`)
+      : api.get('/agent/active');
+  },
+  generate: (workspaceId?: string) => {
+    const wsId = workspaceId || localStorage.getItem('workspace_id');
+    return wsId
+      ? api.post(`/workspaces/${wsId}/agent/generate`)
+      : api.post('/agent/generate');
+  },
+  activate: (id: string, workspaceId?: string) => {
+    const wsId = workspaceId || localStorage.getItem('workspace_id');
+    return wsId
+      ? api.post(`/workspaces/${wsId}/agent/configs/${id}/activate`)
+      : api.post(`/agent/configs/${id}/activate`);
+  },
 };
 
 // ─── Business ─────────────────────────────────────────────────────────────

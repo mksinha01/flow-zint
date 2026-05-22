@@ -69,6 +69,7 @@ app.get('/health', (_, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/business', businessRoutes);
+app.use('/api/workspaces/:workspaceId/agent', agentRoutes);
 app.use('/api/agent', agentRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/calls', callsRoutes);

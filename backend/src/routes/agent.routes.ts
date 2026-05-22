@@ -9,7 +9,7 @@ import {
 import { authenticate } from '../middlewares/auth.middleware';
 import { requireWorkspaceAccess } from '../middlewares/workspace.middleware';
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
 router.use(authenticate);
 router.use(requireWorkspaceAccess);

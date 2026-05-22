@@ -16,7 +16,10 @@ export default function NewWorkspacePage() {
 
     try {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-      await workspacesApi.create(name, slug);
+      const res = await workspacesApi.create(name, slug);
+      if (res.data?.data?.workspace?.id) {
+        localStorage.setItem("workspace_id", res.data.data.workspace.id);
+      }
       // Redirect to the onboarding flow to fill business form and upload docs
       router.push("/dashboard/onboarding");
     } catch (err: any) {

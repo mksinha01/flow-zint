@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { businessApi, agentApi } from "@/lib/api";
+import { businessApi, agentApi, leadsApi } from "@/lib/api";
 import { FileText, BarChart3, Zap, CheckCircle, Loader2, X, Upload } from "lucide-react";
 
 export default function OnboardingPage() {
@@ -73,13 +73,68 @@ export default function OnboardingPage() {
       setGeneratingStep("Saving business context...");
       const success = await saveContext();
       if (!success) throw new Error("Failed to save");
+      
+      // Get workspace ID from localStorage
+      const workspaceId = localStorage.getItem('workspace_id');
+      if (!workspaceId) {
+        showToast("Workspace not found");
+        return;
+      }
+
+      if (csvFile) {
+        setGeneratingStep("Importing leads from CSV...");
+        try {
+          const text = await csvFile.text();
+          const lines = text.split(/\r?\n/).filter(l => l.trim());
+          if (lines.length > 1) {
+            const headers = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+            const leads = [];
+            for (let i = 1; i < lines.length; i++) {
+              const vals = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/^"|"$/g, '').trim());
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const obj: any = {};
+              headers.forEach((h, idx) => {
+                if (h) {
+                  let key = h;
+                  if (h.includes("phone") || h.includes("mobile")) key = "phone";
+                  else if (h.includes("name") && !h.includes("company")) key = "name";
+                  else if (h.includes("email")) key = "email";
+                  else if (h.includes("company") || h.includes("org")) key = "company";
+                  obj[key] = vals[idx] || "";
+                }
+              });
+              leads.push(obj);
+            }
+            if (leads.length > 0) {
+              try {
+                await leadsApi.bulkImport(leads);
+                showToast(`${leads.length} leads imported successfully!`);
+              } catch (importErr: any) {
+                console.error("Import API Error:", importErr);
+                throw new Error(importErr.response?.data?.message || "Failed to import leads from API.");
+              }
+            } else {
+              throw new Error("No data rows found in CSV.");
+            }
+          } else {
+            throw new Error("CSV file is empty or missing headers.");
+          }
+        } catch (e: any) {
+          console.error("Failed to parse/import CSV", e);
+          showToast(e.message || "Failed to import leads from CSV.");
+          setGenerating(false);
+          return;
+        }
+      }
+
       setGeneratingStep("Generating AI agent with Gemini... (~15s)");
-      const r = await agentApi.generate();
+      const r = await agentApi.generate(workspaceId);
       setGeneratedConfig(r.data.data.config);
       setGenerated(true);
       setGeneratingStep("Agent ready! Redirecting...");
       showToast("AI Agent generated!");
-      setTimeout(() => router.push("/dashboard/agent"), 1500);
+      
+      setTimeout(() => router.push(`/dashboard/workspace/${workspaceId}/agent`), 1500);
     } catch (e: unknown) {
       const ax = e as { response?: { data?: { message?: string } } };
       showToast(ax?.response?.data?.message || (e as Error).message || "Failed to generate");

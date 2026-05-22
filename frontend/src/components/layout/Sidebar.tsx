@@ -101,7 +101,7 @@ export default function Sidebar() {
             </div>
           </div>
           <Link
-            href="/dashboard/onboarding"
+            href="/dashboard/workspace/new"
             className="w-6 h-6 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 transition-colors"
             title="Create Workspace"
           >
