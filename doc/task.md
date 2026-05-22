@@ -50,3 +50,20 @@
 - [x] PM2 ecosystem.config.js
 - [x] Jest unit tests
 - [x] pytest for AI agent
+# flow-zint
+# flow-zint
+see in this cureent  dashboard dont have a workspce option so simple we need have one option is create a workspace with + sign
+that was create a personalize agent for user 
+show search about that how 
+a onbording form is that  and make ui simple and as non vibe coded 
+steps 
+1: user in dashboard create a workspace using +sign of this and then 
+2: onboading form is upper that ask simple qustion about thier buzniness and what they want to sale and how was thier product
+3: upload thier product or company details in doc formate or many 
+4: upload target people contact number in csv with name and details 
+5: for  call agent ready a promt for ai how they apporch to sale product
+6: each call was personlied using ai with name aur deatils 
+7: after call analysis was doing and other they was tell in past in this product 
+for calling agent use this repo https://github.com/mksinha01/outbound-caller-python
+and for normal ai opration use langchain (https://docs.langchain.com) framenwork with gemini api for make thier promt aur find lead and also ready route accodoing to that backennd and frontend expect call agent other all agent work with gemini api
+make plan and excute this
