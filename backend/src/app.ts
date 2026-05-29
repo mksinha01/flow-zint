@@ -61,9 +61,8 @@ app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use('/uploads', express.static(path.join(__dirname, '../public')));
 
 // ─── HEALTH CHECK ────────────────────────────────────────────────────────────
-app.get('/health', (_, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '2.0.0' });
-});
+app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
 
 // ─── API ROUTES ──────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
