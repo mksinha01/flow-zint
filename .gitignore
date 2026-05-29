@@ -16,3 +16,5 @@ venv/
 .pytest_cache/
 prisma/generated/
 uploads/
+nul
+/nul

@@ -72,6 +72,8 @@ const buildFallbackPersona = (context: {
   callObjective: string;
   voiceStyle: string;
   additionalNotes: string | null;
+  sellingStyle?: string;
+  entrapmentOptions?: string | null;
 }): GeneratedPersona => {
   const voiceTone = context.voiceStyle === 'CASUAL' ? 'friendly and conversational' :
                     context.voiceStyle === 'ENERGETIC' ? 'enthusiastic and high-energy' :
@@ -80,7 +82,7 @@ const buildFallbackPersona = (context: {
   const objectiveAction = context.callObjective === 'book_demo' ? 'book a product demonstration' :
                           context.callObjective === 'qualify_lead' ? 'qualify them as a potential customer' :
                           context.callObjective === 'close_deal' ? 'close the deal' :
-                          'book a demo or follow-up meeting';
+                          'book a demo or close a deal';
 
   const painPoints = context.keyPainPoints && context.keyPainPoints !== 'Not specified'
     ? context.keyPainPoints : 'inefficiency, high costs, and lack of automation';
@@ -90,6 +92,60 @@ const buildFallbackPersona = (context: {
 
   const additionalInfo = context.additionalNotes && context.additionalNotes !== 'None'
     ? `\n\nAdditional context from the business owner:\n${context.additionalNotes}` : '';
+
+  const isForcedTrap = context.sellingStyle === 'FORCED_TRAP';
+
+  if (isForcedTrap) {
+    return {
+      systemPrompt: `You are an elite high-pressure closing agent for ${context.companyName}. Your role is to make outbound sales calls to ${context.targetCustomer} and immediately CLOSE the sale.
+You must maintain an extremely intense, persistent, high-energy tone throughout the call. You are NOT an advisory helper; you are here to sell.
+Never accept 'no', 'busy', 'no budget', or 'not interested' as final answers. Instantly reframe any pushback as the EXACT reason they need your solution right now.
+Use assumptive closes (e.g., act as if they have already decided to buy and request their signup/billing email). Use false alternatives (e.g., corner them to choose between starting immediately to gain efficiency, or keeping losing money).
+
+ABOUT THE COMPANY & PRODUCT:
+- Company Name: ${context.companyName}
+- Product: ${context.productDescription}
+- Target: ${context.targetCustomer}
+- Primary pain solved: ${painPoints}
+${context.pricing ? `- Pricing: ${context.pricing}` : '- Pricing: Ask for payment to start immediately'}
+- Competitors to shut down: ${competitors}${additionalInfo}
+
+MISSION INSTRUCTIONS:
+1. Hit them with a bold, high-hook opening.
+2. Ask binary, trapping qualifying questions that force them to admit they need our product.
+3. Completely bypass any objections by reframing them as buying signals.
+4. Assume the close at every step and guide them directly to payment.`,
+
+      openingScript: `Hi, this is Alex from ${context.companyName}. We help ${context.targetCustomer} eliminate ${painPoints} starting today. Do you want to double your team's efficiency next Monday, or do you want to keep losing $5,000 every single month?`,
+
+      qualifyingQuestions: [
+        `Do you want to continue wasting hours every week on ${painPoints}, or are you ready to automate it?`,
+        `If you had to choose between continuing with ${competitors} or doubling your revenue starting today, which would you pick?`,
+        `How much money is it costing you to delay fixing this issue?`,
+        `Since you agree this is a critical leak, is there any logical reason not to solve it right now?`,
+        `Who else on your team is ready to approve this growth immediately?`
+      ],
+
+      objectionHandlers: [
+        {
+          objection: "We're not interested right now / Not a good time",
+          response: `That is precisely why I called you today. Because you're busy, you need ${context.companyName} immediately to save 15 hours every week. Would you prefer to save that time starting this Monday, or delay your team's success? Let's get you set up.`
+        },
+        {
+          objection: "We already have a solution for this",
+          response: `I expect that, but the reason companies switch from ${competitors} to ${context.companyName} is that we get results 5 times faster. Let's get you migrated today so you stop wasting money. Should we use your corporate or personal email for the billing setup?`
+        },
+        {
+          objection: "It's too expensive / We have no budget",
+          response: `The budget is the exact reason you need this. Staying with your current setup is costing you three times as much as ${context.companyName}. It pays for itself in the first 14 days. Let's configure your account now so you start saving today.`
+        },
+        {
+          objection: "Can you send me an email with information?",
+          response: `I can send that, but reading a PDF won't fix your ${painPoints} today. Let's take 30 seconds to lock in your discounted pricing right now so you don't miss out. What is your billing address?`
+        }
+      ]
+    };
+  }
 
   return {
     systemPrompt: `You are an AI sales agent for ${context.companyName}. Your role is to make outbound sales calls to ${context.targetCustomer} and ${objectiveAction}.
@@ -197,6 +253,40 @@ export const generateAgentPersona = async (workspaceId: string): Promise<Generat
     ? documents.map((d) => `--- Document: ${d.fileName} ---\n${d.extractedText}`).join('\n\n')
     : 'No documents uploaded.';
 
+  // Read selling style and options from database (with defaults)
+  const sellingStyle = (context as any).sellingStyle || 'CONSULTATIVE';
+  const entrapmentOptionsStr = (context as any).entrapmentOptions || '[]';
+
+  let forcedSellingInstructions = '';
+  if (sellingStyle === 'FORCED_TRAP') {
+    let techniques = ['false_alternative', 'assumptive_close', 'fomo_urgency', 'redirection_loop', 'pain_accentuator'];
+    try {
+      techniques = JSON.parse(entrapmentOptionsStr);
+    } catch { /* ignore */ }
+
+    const techniqueDescriptions: Record<string, string> = {
+      false_alternative: '- FALSE ALTERNATIVE (BINARY TRAP): Frame options as a binary choice where both options lead to positive engagement or closing the sale (e.g., "Do you want to start saving $5,000 every week starting next Monday, or do you want to keep losing that to competitors until next month?").',
+      assumptive_close: '- ASSUMPTIVE CLOSE: Speak and act with total certainty that the prospect has already decided to buy. Transition immediately to asking for billing/signup details (e.g., "Perfect, let\'s get your account created now under your email. Should we send the invoice to your corporate billing address or your personal one?").',
+      fomo_urgency: '- ARTIFICIAL FOMO & SCARCITY: Fabricate immediate scarcity and high-intensity urgency (e.g., "We only have 2 priority onboarding slots left this week under this discounted rate, let\'s lock yours in today.").',
+      redirection_loop: '- PERSISTENT OBJECTION BYPASS (REDIRECTION LOOP): Refuse to accept objections like "too busy," "no budget," or "not interested". Instantly reframe the objection as the exact reason they must buy right now (e.g., "That\'s exactly why we need to get you started — because you\'re busy, you need our automation to free up 15 hours every single week.").',
+      pain_accentuator: '- PAIN ACCENTUATOR & GUILT: Highlight their current pain points aggressively, reminding them that not buying is a form of self-sabotage that will cause their business to fall further behind.'
+    };
+
+    const selectedTechniqueText = techniques.map((t) => techniqueDescriptions[t]).filter(Boolean).join('\n');
+
+    forcedSellingInstructions = `
+
+CRITICAL COMPULSORY SALES PATTERN: HIGH-PRESSURE FORCED TRAP CLOSING.
+You are NOT an advisory assistant or consultative listener. You are an elite, highly aggressive, uncompromising closing agent. Your single mission on the call is to corner the prospect and force/trap them into purchasing the products directly. You must apply these aggressive sales closing techniques:
+${selectedTechniqueText || Object.values(techniqueDescriptions).join('\n')}
+
+Based on this, you must generate:
+- An opening script that is high-pressure, bold, and hook-heavy.
+- Qualifying questions that are binary "trapping" questions, leaving no room for a soft exit.
+- Objection handlers that are absolute verbal locks, shutting down objections completely and looping back to payment/closing.
+- A highly detailed, intense system prompt instructing the agent to never take "no" for an answer, maintain extreme persistence, and forcefully steer every turn toward an immediate close.`;
+  }
+
   // LangChain ChatPromptTemplate — separates system instructions from user context
   const prompt = ChatPromptTemplate.fromMessages([
     [
@@ -206,7 +296,7 @@ Your job is to generate a complete, highly specific AI sales agent configuration
 - Make the system prompt specific to this company — never generic.
 - Objection handlers must reference actual company benefits and differentiators.
 - Match the voice style: {voiceStyle}
-- The primary call goal is: {callObjective}`,
+- The primary call goal is: {callObjective}${forcedSellingInstructions}`,
     ],
     [
       'human',
@@ -256,7 +346,11 @@ UPLOADED BUSINESS DOCUMENTS:
     logger.info(`Falling back to local persona generation for workspace: ${workspaceId}`);
 
     // Fallback: build a personalized persona from business context without AI
-    const fallback = buildFallbackPersona(context);
+    const fallback = buildFallbackPersona({
+      ...context,
+      sellingStyle,
+      entrapmentOptions: entrapmentOptionsStr,
+    });
     logger.info(`Fallback agent persona generated for workspace: ${workspaceId}`);
     return fallback;
   }

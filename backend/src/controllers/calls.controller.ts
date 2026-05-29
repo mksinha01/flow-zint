@@ -25,14 +25,25 @@ export const listCalls = async (req: AuthRequest, res: Response): Promise<void> 
       orderBy: { createdAt: 'desc' },
       include: {
         lead: { select: { name: true, phone: true, company: true } },
-        analysis: { select: { leadScore: true, classification: true, sentiment: true } },
+        analysis: { select: { leadScore: true, classification: true, sentiment: true, objections: true } },
         agentConfig: { select: { version: true } },
       },
     }),
     prisma.call.count({ where }),
   ]);
 
-  sendSuccess(res, { calls }, 'Calls retrieved', 200, {
+  const callsWithParsedAnalysis = calls.map(call => {
+    if (call.analysis && call.analysis.objections) {
+      try {
+        call.analysis.objections = JSON.parse(call.analysis.objections as any);
+      } catch {
+        call.analysis.objections = [];
+      }
+    }
+    return call;
+  });
+
+  sendSuccess(res, { calls: callsWithParsedAnalysis }, 'Calls retrieved', 200, {
     page: Number(page),
     limit: Number(limit),
     total,
@@ -106,6 +117,14 @@ export const getCall = async (req: AuthRequest, res: Response): Promise<void> =>
   if (!call) {
     sendNotFound(res, 'Call');
     return;
+  }
+
+  if (call.analysis && call.analysis.objections) {
+    try {
+      call.analysis.objections = JSON.parse(call.analysis.objections as any);
+    } catch {
+      call.analysis.objections = [];
+    }
   }
 
   sendSuccess(res, { call });

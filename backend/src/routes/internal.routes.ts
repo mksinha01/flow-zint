@@ -87,6 +87,43 @@ router.post('/calls/:callId/qualify', async (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+/** Agent saves call transcript */
+router.post('/calls/:callId/transcript', async (req: Request, res: Response) => {
+  const { callId } = req.params;
+  const { transcript } = req.body;
+
+  if (!transcript) {
+    res.status(400).json({ success: false, message: 'Transcript is required' });
+    return;
+  }
+
+  try {
+    const call = await prisma.call.findUnique({
+      where: { id: callId },
+    });
+
+    if (!call) {
+      res.status(404).json({ success: false, message: 'Call not found' });
+      return;
+    }
+
+    await prisma.call.update({
+      where: { id: callId },
+      data: { transcript },
+    });
+
+    runCallAnalysis(callId).catch((err) => {
+      logger.error(`Error in runCallAnalysis from transcript upload:`, err);
+    });
+
+    logger.info(`Transcript saved for call ${callId} (${transcript.length} chars)`);
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Failed to save transcript:', error);
+    res.status(500).json({ success: false, message: 'Failed to save transcript' });
+  }
+});
+
 /** Agent triggers demo booking */
 router.post('/calls/:callId/book', async (req: Request, res: Response) => {
   const { callId } = req.params;

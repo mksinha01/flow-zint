@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ─── ENUMS ───────────────────────────────────────────────────────────────────
@@ -72,6 +72,8 @@ model BusinessContext {
   callObjective      String // "book_demo" | "qualify" | "sell_direct"
   voiceStyle         String   @default("FORMAL")
   additionalNotes    String?
+  sellingStyle       String   @default("CONSULTATIVE")
+  entrapmentOptions  String?
   updatedAt          DateTime @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import api, { agentApi } from "@/lib/api";
+import api, { agentApi, businessApi } from "@/lib/api";
 import type { AgentConfig } from "@/types";
 import {
   Bot, Zap, Activity, RefreshCw, UserCheck, Shield, ChevronRight,
-  X, Loader2, CheckCircle, AlertCircle, Brain, Eye,
+  X, Loader2, CheckCircle, AlertCircle, Brain, Eye, Lock, Sliders,
+  TrendingUp, Sparkles, MessageSquareWarning, Flame,
 } from "lucide-react";
 
 function Skeleton({ className }: { className?: string }) {
@@ -53,22 +54,66 @@ export default function WorkspaceAgentPage() {
   const [activating, setActivating] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
+  // Closing Tactics State
+  const [sellingStyle, setSellingStyle] = useState<string>("CONSULTATIVE");
+  const [entrapmentOptions, setEntrapmentOptions] = useState<string[]>([]);
+  const [savingStyle, setSavingStyle] = useState(false);
+
   const showToast = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 4000); };
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [listRes, activeRes] = await Promise.all([
+      const [listRes, activeRes, contextRes] = await Promise.all([
         agentApi.list(workspaceId),
         agentApi.getActive(workspaceId),
+        businessApi.get().catch(() => null),
       ]);
       setConfigs(listRes.data.data.configs);
       setActiveConfig(activeRes.data.data.config);
+      if (contextRes?.data?.data?.context) {
+        const ctx = contextRes.data.data.context;
+        setSellingStyle(ctx.sellingStyle || "CONSULTATIVE");
+        try {
+          setEntrapmentOptions(JSON.parse(ctx.entrapmentOptions || "[]"));
+        } catch {
+          setEntrapmentOptions([]);
+        }
+      }
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [workspaceId]);
 
   useEffect(() => { if (workspaceId) load(); }, [load, workspaceId]);
+
+  const handleSaveClosingTactics = async (newStyle: string, newOptions: string[]) => {
+    setSavingStyle(true);
+    try {
+      const res = await businessApi.get();
+      const currentContext = res.data?.data?.context || {};
+
+      await businessApi.save({
+        companyName: currentContext.companyName || "Unknown Company",
+        productDescription: currentContext.productDescription || "No description",
+        targetCustomer: currentContext.targetCustomer || "General Audience",
+        keyPainPoints: currentContext.keyPainPoints || "Not specified",
+        pricing: currentContext.pricing || "",
+        competitorNames: currentContext.competitorNames || "",
+        callObjective: currentContext.callObjective || "book_demo",
+        voiceStyle: currentContext.voiceStyle || "FORMAL",
+        additionalNotes: currentContext.additionalNotes || "",
+        sellingStyle: newStyle,
+        entrapmentOptions: JSON.stringify(newOptions),
+      });
+      setSellingStyle(newStyle);
+      setEntrapmentOptions(newOptions);
+      showToast("Sales tactics saved! Click 'Generate New Version' to apply.");
+    } catch (err) {
+      showToast("Failed to save sales tactics", false);
+    } finally {
+      setSavingStyle(false);
+    }
+  };
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -240,6 +285,92 @@ export default function WorkspaceAgentPage() {
 
         {/* Right col */}
         <div className="lg:col-span-4 space-y-5">
+          {/* Sales Tactics & Forced Trap Closing Engine */}
+          <div className="card p-5 border-indigo-200 bg-indigo-50/10">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-indigo-100/60">
+              <div className="flex items-center gap-1.5">
+                <Sliders className="w-4 h-4 text-indigo-600 animate-pulse" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#191c1e]">Sales Closing Engine</h3>
+              </div>
+              <span className={`px-2 py-0.5 rounded-[6px] text-[9px] font-extrabold uppercase transition-all ${sellingStyle === "FORCED_TRAP" ? "bg-red-500 text-white animate-pulse" : "bg-indigo-100 text-indigo-700"}`}>
+                {sellingStyle === "FORCED_TRAP" ? "High Pressure" : "Consultative"}
+              </span>
+            </div>
+
+            <p className="text-xs text-[#777587] mb-4">Select the closing strategy for your AI Voice Agent to optimize lead conversions.</p>
+
+            {/* Selector tabs */}
+            <div className="grid grid-cols-2 gap-2 mb-4 p-1 rounded-xl bg-slate-100/80 border border-slate-200">
+              <button
+                onClick={() => handleSaveClosingTactics("CONSULTATIVE", entrapmentOptions)}
+                className={`py-2 text-xs font-bold rounded-lg transition-all ${sellingStyle === "CONSULTATIVE" ? "bg-white shadow text-indigo-600" : "text-[#777587] hover:text-[#464555]"}`}
+              >
+                Consultative
+              </button>
+              <button
+                onClick={() => handleSaveClosingTactics("FORCED_TRAP", entrapmentOptions)}
+                className={`py-2 text-xs font-bold rounded-lg transition-all ${sellingStyle === "FORCED_TRAP" ? "bg-white shadow text-red-600" : "text-[#777587] hover:text-[#464555]"}`}
+              >
+                Forced Trap 🔥
+              </button>
+            </div>
+
+            {sellingStyle === "FORCED_TRAP" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-extrabold uppercase tracking-wider text-red-600 mb-2 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-red-500" /> Active Entrapment Techniques
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      { key: "false_alternative", label: "False Alternative (Binary choice)", desc: "Forces prospects to choose between buying or losing money." },
+                      { key: "assumptive_close", label: "Assumptive Closing", desc: "Act as if they already agreed to buy and request billing info." },
+                      { key: "fomo_urgency", label: "FOMO & Artificial Scarcity", desc: "Fabricates immediate product license limits to force haste." },
+                      { key: "redirection_loop", label: "Objection Redirection Loop", desc: "Instantly turns 'busy/no money' into the primary reason to buy." },
+                      { key: "pain_accentuator", label: "Pain Accentuator & Guilt", desc: "Reminds them that walking away is a failure to help their team." }
+                    ].map((tech) => {
+                      const active = entrapmentOptions.includes(tech.key);
+                      return (
+                        <label key={tech.key} className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${active ? "bg-red-50/40 border-red-100 text-[#191c1e]" : "bg-white border-slate-200 text-[#464555] hover:bg-slate-50"}`}>
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 rounded border-slate-300 text-red-600 focus:ring-red-500 shrink-0 animate-scale-in"
+                            checked={active}
+                            onChange={(e) => {
+                              const newOpts = e.target.checked
+                                ? [...entrapmentOptions, tech.key]
+                                : entrapmentOptions.filter((k) => k !== tech.key);
+                              handleSaveClosingTactics("FORCED_TRAP", newOpts);
+                            }}
+                          />
+                          <div>
+                            <div className="text-xs font-bold">{tech.label}</div>
+                            <div className="text-[10px] text-[#777587] leading-relaxed mt-0.5">{tech.desc}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100 flex items-start gap-2">
+                  <MessageSquareWarning className="w-4 h-4 text-red-500 shrink-0 mt-0.5 animate-pulse" />
+                  <p className="text-[10px] text-red-700 leading-relaxed font-medium">
+                    <strong>Warning:</strong> High-Pressure Forced Trap mode commands the AI to be intensely aggressive, persistent, and bypass standard conversational boundaries. Ensure compliance with local outbound sales practices.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-indigo-50/50 border border-indigo-100 text-center">
+                <Lock className="w-5 h-5 text-indigo-500 mx-auto mb-1.5" />
+                <div className="text-xs font-bold text-indigo-800">Standard Consultative Advisor</div>
+                <p className="text-[10px] text-indigo-600 leading-relaxed mt-1">
+                  The agent acts as a helpful, friendly consultant. Toggle <strong>Forced Trap</strong> mode to unlock aggressive closing strategies.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Model health */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
