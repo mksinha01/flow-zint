@@ -33,14 +33,15 @@ export const listCalls = async (req: AuthRequest, res: Response): Promise<void> 
   ]);
 
   const callsWithParsedAnalysis = calls.map(call => {
-    if (call.analysis && call.analysis.objections) {
+    const c = call as any;
+    if (c.analysis && typeof c.analysis.objections === 'string') {
       try {
-        call.analysis.objections = JSON.parse(call.analysis.objections as any);
+        c.analysis.objections = JSON.parse(c.analysis.objections);
       } catch {
-        call.analysis.objections = [];
+        c.analysis.objections = [];
       }
     }
-    return call;
+    return c;
   });
 
   sendSuccess(res, { calls: callsWithParsedAnalysis }, 'Calls retrieved', 200, {
@@ -119,15 +120,16 @@ export const getCall = async (req: AuthRequest, res: Response): Promise<void> =>
     return;
   }
 
-  if (call.analysis && call.analysis.objections) {
+  const parsedCall = call as any;
+  if (parsedCall.analysis && typeof parsedCall.analysis.objections === 'string') {
     try {
-      call.analysis.objections = JSON.parse(call.analysis.objections as any);
+      parsedCall.analysis.objections = JSON.parse(parsedCall.analysis.objections);
     } catch {
-      call.analysis.objections = [];
+      parsedCall.analysis.objections = [];
     }
   }
 
-  sendSuccess(res, { call });
+  sendSuccess(res, { call: parsedCall });
 };
 
 /**
