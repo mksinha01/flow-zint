@@ -79,14 +79,23 @@ export const dispatchCall = async (req: AuthRequest, res: Response): Promise<voi
   });
 
   // Dispatch via LiveKit
-  const roomName = await dispatchOutboundCall({
-    phoneNumber: lead.phone,
-    callId: call.id,
-    leadName: lead.name,
-    leadNotes: lead.notes || undefined,
-    agentConfigId: agentConfig.id,
-    workspaceId,
-  });
+  let roomName: string;
+  try {
+    roomName = await dispatchOutboundCall({
+      phoneNumber: lead.phone,
+      callId: call.id,
+      leadName: lead.name,
+      leadNotes: lead.notes || undefined,
+      agentConfigId: agentConfig.id,
+      workspaceId,
+    });
+  } catch (err: any) {
+    logger.error('Failed to dispatch call via LiveKit:', err);
+    // Delete the queued call record to avoid stale entries
+    await prisma.call.delete({ where: { id: call.id } });
+    sendError(res, `LiveKit Dispatch Failure: ${err.message || err}`, 500);
+    return;
+  }
 
   // Update call with room
   await prisma.call.update({
