@@ -85,6 +85,7 @@ export const dispatchCall = async (req: AuthRequest, res: Response): Promise<voi
       phoneNumber: lead.phone,
       callId: call.id,
       leadName: lead.name,
+      leadCompany: lead.company || undefined,
       leadNotes: lead.notes || undefined,
       agentConfigId: agentConfig.id,
       workspaceId,

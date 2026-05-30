@@ -43,13 +43,25 @@ router.patch('/calls/:callId', async (req: Request, res: Response) => {
   const { callId } = req.params;
   const { transcript, status } = req.body;
 
+  // Calculate duration from startedAt if completing
+  let duration: number | undefined;
+  if (status === 'COMPLETED' || status === 'FAILED') {
+    const existing = await prisma.call.findUnique({
+      where: { id: callId },
+      select: { startedAt: true },
+    });
+    if (existing?.startedAt) {
+      duration = Math.floor((Date.now() - existing.startedAt.getTime()) / 1000);
+    }
+  }
+
   await prisma.call.update({
     where: { id: callId },
     data: {
       ...(transcript && { transcript }),
       ...(status && { status }),
-      ...(status === 'COMPLETED' && { endedAt: new Date() }),
-      ...(status === 'FAILED' && { endedAt: new Date() }),
+      ...((status === 'COMPLETED' || status === 'FAILED') && { endedAt: new Date() }),
+      ...(duration !== undefined && { duration }),
     },
   });
 
