@@ -415,17 +415,51 @@ async def entrypoint(ctx: JobContext):
             await disconnect_event.wait()
         except asyncio.CancelledError:
             logger.info("Agent session cancelled.")
+        
+        # Small delay to allow final messages to flush into chat_ctx
+        await asyncio.sleep(1.0)
 
     except Exception as e:
         logger.error(f"Error in agent session lifecycle: {e}")
         
     finally:
-        # Post-Call Processing: Compile turn-by-turn text transcript from chat_ctx
+        # Post-Call Processing: Compile turn-by-turn transcript from chat_ctx
+        # Note: .messages is the correct attribute (not .items)
+        # Content may be a plain string OR a list of content blocks (RealtimeModel)
         transcript = ""
-        for item in agent.chat_ctx.items:
-            if item.role in ["user", "assistant"] and item.content:
-                role_label = "Lead" if item.role == "user" else "AI"
-                transcript += f"{role_label}: {item.content}\n"
+        try:
+            messages = agent.chat_ctx.messages
+            logger.info(f"Building transcript from {len(messages)} messages...")
+            for msg in messages:
+                role = getattr(msg, 'role', None)
+                if role not in ['user', 'assistant']:
+                    continue
+                content = getattr(msg, 'content', None)
+                if not content:
+                    continue
+                # Content can be a string or a list of content blocks
+                if isinstance(content, str):
+                    text = content.strip()
+                elif isinstance(content, list):
+                    # Extract text from content blocks
+                    parts = []
+                    for block in content:
+                        if isinstance(block, str):
+                            parts.append(block)
+                        elif hasattr(block, 'text'):
+                            parts.append(block.text)
+                    text = ' '.join(parts).strip()
+                else:
+                    text = str(content).strip()
+                
+                if text:
+                    role_label = "Lead" if role == "user" else "AI"
+                    transcript += f"{role_label}: {text}\n"
+        except Exception as te:
+            logger.error(f"Error building transcript: {te}")
+            transcript = ""
+
+        logger.info(f"Transcript built: {len(transcript)} chars")
 
         # Upload the completed transcript to trigger backend sales analysis
         if call_id and transcript:
