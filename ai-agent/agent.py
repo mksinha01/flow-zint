@@ -396,12 +396,25 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"participant joined: {participant.identity}")
         agent.set_participant(participant)
 
-        # Keep the session running until the call ends (room disconnects)
+        # Keep the session running until the user hangs up
+        disconnect_event = asyncio.Event()
+
+        @ctx.room.on("participant_disconnected")
+        def on_participant_disconnected(p: rtc.RemoteParticipant):
+            if p.identity == participant.identity:
+                logger.info(f"Participant {p.identity} disconnected. Ending session.")
+                disconnect_event.set()
+
+        @ctx.room.on("disconnected")
+        def on_room_disconnected():
+            logger.info("Room disconnected. Ending session.")
+            disconnect_event.set()
+
         logger.info("Awaiting conversational session completion...")
         try:
-            await asyncio.Event().wait()
+            await disconnect_event.wait()
         except asyncio.CancelledError:
-            logger.info("Agent session cancelled or ended by user hangup.")
+            logger.info("Agent session cancelled.")
 
     except Exception as e:
         logger.error(f"Error in agent session lifecycle: {e}")
