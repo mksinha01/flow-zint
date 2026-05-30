@@ -20,7 +20,12 @@ from livekit.agents import (
     WorkerOptions,
     RoomInputOptions,
 )
-from livekit.plugins import openai
+from livekit.plugins import (
+    deepgram,
+    openai,
+    cartesia,
+    silero,
+)
 
 # load environment variables, this is optional, only used for local development
 load_dotenv(dotenv_path=".env.local")
@@ -95,10 +100,13 @@ class OutboundCaller(Agent):
     async def on_enter(self):
         """Called by LiveKit when this agent is assigned to a session — speak first."""
         logger.info("Agent entered session, sending initial greeting...")
+        name = self.dial_info.get("lead_name", "there")
         await self.session.generate_reply(
             instructions=(
-                f"Greet the customer warmly by name ({self.dial_info.get('lead_name', 'there')}) and deliver the opening script: \"{self.opening_script}\". "
-                "Do not add any other text before or after."
+                f"You just made an outbound sales call to {name}. "
+                "They just picked up the phone. Greet them warmly, introduce yourself, "
+                f"and deliver the opening script naturally: \"{self.opening_script}\". "
+                "Keep the tone natural, polished, and professional, then wait for their reply."
             )
         )
 
@@ -254,7 +262,7 @@ async def fetch_agent_config(config_id: str) -> dict:
         "Content-Type": "application/json"
     }
     logger.info(f"Fetching agent config from backend: {url}")
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5.0)) as session:
         try:
             async with session.get(url, headers=headers) as response:
                 if response.status == 200:
