@@ -97,6 +97,17 @@ class OutboundCaller(Agent):
         self.participant: rtc.RemoteParticipant | None = None
         self.dial_info = dial_info
 
+    async def on_enter(self):
+        """Called by LiveKit when this agent is assigned to a session — speak first."""
+        logger.info("Agent entered session, sending initial greeting...")
+        await self.session.generate_reply(
+            instructions=(
+                f"You just made an outbound sales call to {self.dial_info.get('lead_name', 'there')}. "
+                "They just picked up the phone. Greet them warmly, introduce yourself, "
+                f"and deliver the opening script naturally: \"{self.opening_script}\". "
+                "Keep the tone natural, polished, and professional, then wait for their reply."
+            )
+        )
 
     def set_participant(self, participant: rtc.RemoteParticipant):
         self.participant = participant
@@ -372,29 +383,18 @@ async def entrypoint(ctx: JobContext):
         return
 
     try:
-        # Start session, linked to the private room
+        # Start session AFTER call is answered, linked to the SIP participant
         await session.start(
             agent=agent,
             room=ctx.room,
+            room_input_options=RoomInputOptions(
+                participant_identity=participant_identity,
+            ),
         )
 
         participant = await ctx.wait_for_participant(identity=participant_identity)
         logger.info(f"participant joined: {participant.identity}")
         agent.set_participant(participant)
-
-        # Wait a tiny 0.5s buffer to ensure audio streams are fully negotiated crossing the globe
-        await asyncio.sleep(0.5)
-
-        # Trigger the initial greeting manually now that the user is fully connected in the room!
-        logger.info("Triggering initial greeting now that participant is in the room...")
-        await session.generate_reply(
-            instructions=(
-                f"You just made an outbound sales call to {agent.dial_info.get('lead_name', 'there')}. "
-                "They just picked up the phone. Greet them warmly, introduce yourself, "
-                f"and deliver the opening script naturally: \"{agent.opening_script}\". "
-                "Keep the tone natural, polished, and professional, then wait for their reply."
-            )
-        )
 
         # Keep the session running until it becomes inactive
         logger.info("Awaiting conversational session completion...")
