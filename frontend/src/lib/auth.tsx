@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User } from '@/types';
-import { authApi } from '@/lib/api';
+import { authApi, workspacesApi } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
@@ -19,12 +19,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Helper: fetch user's first workspace and cache its ID in localStorage
+  const fetchAndStoreWorkspace = async () => {
+    try {
+      const { data } = await workspacesApi.list();
+      const workspaces = (data as any).data?.workspaces ?? [];
+      if (workspaces.length > 0) {
+        localStorage.setItem('workspace_id', workspaces[0].id);
+      }
+    } catch {
+      // non-fatal — workspace_id will just be missing
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     const stored = localStorage.getItem('user');
     if (token && stored) {
       setAccessToken(token);
       setUser(JSON.parse(stored));
+      // Re-hydrate workspace_id if not cached yet
+      if (!localStorage.getItem('workspace_id')) {
+        fetchAndStoreWorkspace();
+      }
     }
     setIsLoading(false);
   }, []);
@@ -37,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
     setAccessToken(accessToken);
+    // Cache workspace_id so workspace-protected routes get x-workspace-id header
+    await fetchAndStoreWorkspace();
   };
 
   const register = async (name: string, email: string, password: string, workspaceName: string) => {
@@ -47,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
     setAccessToken(accessToken);
+    // Cache workspace_id so workspace-protected routes get x-workspace-id header
+    await fetchAndStoreWorkspace();
   };
 
   const logout = () => {

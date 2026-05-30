@@ -6,7 +6,7 @@ import { sendSuccess, sendCreated, sendError, sendUnauthorized } from '../utils/
 import { logger } from '../config/logger';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
-  const { name, email, password } = req.body;
+  const { name, email, password, workspaceName } = req.body;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -15,9 +15,33 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
 
   const passwordHash = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: { name, email, passwordHash },
-    select: { id: true, name: true, email: true, createdAt: true },
+
+  // Create user + workspace atomically
+  const slug = (workspaceName || name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 48);
+
+  const [user] = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: { name, email, passwordHash },
+      select: { id: true, name: true, email: true, createdAt: true },
+    });
+
+    // Auto-create first workspace
+    await tx.workspace.create({
+      data: {
+        name: workspaceName || name,
+        slug: `${slug}-${user.id.slice(-6)}`, // append suffix to guarantee uniqueness
+        ownerId: user.id,
+        members: {
+          create: { userId: user.id, role: 'ADMIN' },
+        },
+      },
+    });
+
+    return [user];
   });
 
   const accessToken = signAccessToken({ userId: user.id, email: user.email });
