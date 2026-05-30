@@ -18,3 +18,5 @@ prisma/generated/
 uploads/
 nul
 /nul
+*.db
+*.db-journal

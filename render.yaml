@@ -1,0 +1,104 @@
+services:
+  # ─── BACKEND (Express + Prisma + PostgreSQL) ──────────────────────────────
+  - type: web
+    name: flow-zint-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npx prisma db push && npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false   # Set manually in Render dashboard
+      - key: FRONTEND_URL
+        sync: false   # e.g. https://flow-zint-frontend.onrender.com
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: SIP_OUTBOUND_TRUNK_ID
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: CARTESIA_API_KEY
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: HUBSPOT_API_KEY
+        sync: false
+      - key: LIVEKIT_WEBHOOK_SECRET
+        sync: false
+      - key: CALENDLY_API_KEY
+        sync: false
+      - key: CALENDLY_EVENT_TYPE_URI
+        sync: false
+      - key: LEARNING_TRIGGER_AFTER_N_CALLS
+        value: "10"
+
+  # ─── FRONTEND (Next.js) ───────────────────────────────────────────────────
+  - type: web
+    name: flow-zint-frontend
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
+    startCommand: pnpm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        sync: false   # e.g. https://flow-zint-backend.onrender.com
+
+  # ─── AI AGENT WORKER (Python / LiveKit) ──────────────────────────────────
+  - type: web
+    name: flow-zint-agent-worker
+    runtime: python
+    rootDir: ai-agent
+    buildCommand: pip install -r requirements.txt
+    startCommand: python agent.py start
+    envVars:
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SIP_OUTBOUND_TRUNK_ID
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: CARTESIA_API_KEY
+        sync: false
