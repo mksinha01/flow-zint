@@ -372,13 +372,10 @@ async def entrypoint(ctx: JobContext):
         return
 
     try:
-        # Start session, linked to the SIP participant
+        # Start session, linked to the private room
         await session.start(
             agent=agent,
             room=ctx.room,
-            room_input_options=RoomInputOptions(
-                participant_identity=participant_identity,
-            ),
         )
 
         participant = await ctx.wait_for_participant(identity=participant_identity)
@@ -399,9 +396,9 @@ async def entrypoint(ctx: JobContext):
             )
         )
 
-        # Keep the session running until the call terminates or participant leaves
-        while ctx.room.connection_state == rtc.ConnectionState.CONNECTED:
-            await asyncio.sleep(1)
+        # Keep the session running until it becomes inactive
+        logger.info("Awaiting conversational session completion...")
+        await session.wait_for_inactive()
 
     except Exception as e:
         logger.error(f"Error in agent session lifecycle: {e}")
