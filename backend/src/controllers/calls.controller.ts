@@ -147,7 +147,6 @@ export const getCall = async (req: AuthRequest, res: Response): Promise<void> =>
  * Called when call events happen: room_started, room_finished, participant_joined, etc.
  */
 export const handleWebhook = async (req: Request, res: Response): Promise<void> => {
-  // LiveKit sends webhook events as JSON
   const event = req.body;
   logger.info(`LiveKit webhook received: ${event.event}`, { room: event.room?.name });
 
@@ -160,13 +159,8 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
 
     const callId = roomName.replace('call-', '');
 
-    // Get the call
     const call = await prisma.call.findUnique({
       where: { id: callId },
-      include: {
-        lead: true,
-        agentConfig: true,
-      },
     });
 
     if (!call) {
@@ -179,16 +173,21 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
       ? Math.floor((Date.now() - call.startedAt.getTime()) / 1000)
       : 0;
 
-    // Mark call as completed
+    // Mark as COMPLETED (the agent may also do this, which is fine — idempotent)
     await prisma.call.update({
       where: { id: callId },
       data: { status: 'COMPLETED', endedAt: new Date(), duration },
     });
 
-    // Run analysis asynchronously
-    runCallAnalysis(callId).catch((err) => {
-      logger.error(`Error in runCallAnalysis from webhook:`, err);
-    });
+    logger.info(`Webhook: call ${callId} marked COMPLETED (duration=${duration}s). Scheduling analysis...`);
+
+    // Run analysis asynchronously — wait up to 12s for the agent to upload the transcript first
+    (async () => {
+      await new Promise(r => setTimeout(r, 12000)); // wait for agent PATCH
+      runCallAnalysis(callId).catch((err) => {
+        logger.error(`Error in runCallAnalysis from webhook:`, err);
+      });
+    })();
   }
 
   res.sendStatus(200);
@@ -196,10 +195,8 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
 
 export const runCallAnalysis = async (callId: string): Promise<void> => {
   try {
-    // Check if analysis already exists to avoid duplicate work
-    const existingAnalysis = await prisma.callAnalysis.findUnique({
-      where: { callId },
-    });
+    // Avoid duplicate analysis
+    const existingAnalysis = await prisma.callAnalysis.findUnique({ where: { callId } });
     if (existingAnalysis) {
       logger.info(`Call ${callId} already analyzed.`);
       return;
@@ -207,14 +204,21 @@ export const runCallAnalysis = async (callId: string): Promise<void> => {
 
     const call = await prisma.call.findUnique({
       where: { id: callId },
-      include: {
-        lead: true,
-        agentConfig: true,
-      },
+      include: { lead: true, agentConfig: true },
     });
 
-    if (!call || !call.transcript || !call.agentConfig) {
-      logger.info(`Skipping analysis for call ${callId}: call found=${!!call}, transcript length=${call?.transcript?.length || 0}`);
+    if (!call) {
+      logger.warn(`runCallAnalysis: call ${callId} not found.`);
+      return;
+    }
+
+    if (!call.transcript) {
+      logger.info(`runCallAnalysis: call ${callId} has no transcript yet — skipping AI analysis (lead stays CALLED).`);
+      return;
+    }
+
+    if (!call.agentConfig) {
+      logger.info(`runCallAnalysis: call ${callId} has no agentConfig — skipping.`);
       return;
     }
 
