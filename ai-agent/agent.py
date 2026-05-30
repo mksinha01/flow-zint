@@ -396,7 +396,7 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"participant joined: {participant.identity}")
         agent.set_participant(participant)
 
-        # Keep the session running until the user hangs up
+        # Keep the session running until the user hangs up or session ends
         disconnect_event = asyncio.Event()
 
         @ctx.room.on("participant_disconnected")
@@ -412,12 +412,23 @@ async def entrypoint(ctx: JobContext):
 
         logger.info("Awaiting conversational session completion...")
         try:
-            await disconnect_event.wait()
+            # Wait for whichever comes first: explicit disconnect event OR session going inactive
+            done, pending = await asyncio.wait(
+                [
+                    asyncio.ensure_future(disconnect_event.wait()),
+                    asyncio.ensure_future(session.wait_for_inactive()),
+                ],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            # Cancel whatever is still pending
+            for task in pending:
+                task.cancel()
+            logger.info("Session ended (disconnect or inactive detected).")
         except asyncio.CancelledError:
             logger.info("Agent session cancelled.")
         
-        # Small delay to allow final messages to flush into chat_ctx
-        await asyncio.sleep(1.0)
+        # Delay to allow final messages to flush into chat_ctx
+        await asyncio.sleep(2.0)
 
     except Exception as e:
         logger.error(f"Error in agent session lifecycle: {e}")
