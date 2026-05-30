@@ -78,7 +78,7 @@ services:
       - key: PORT
         value: 3000
       - key: NEXT_PUBLIC_API_URL
-        sync: false   # e.g. https://flow-zint-backend.onrender.com
+        sync: false   # e.g. https://flow-zint-backend.onrender.com/api
 
   # ─── AI AGENT WORKER (Python / LiveKit) ──────────────────────────────────
   - type: web
