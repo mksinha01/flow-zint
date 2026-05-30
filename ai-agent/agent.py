@@ -396,9 +396,12 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"participant joined: {participant.identity}")
         agent.set_participant(participant)
 
-        # Keep the session running until it becomes inactive
+        # Keep the session running until the call ends (room disconnects)
         logger.info("Awaiting conversational session completion...")
-        await session.wait_for_inactive()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            logger.info("Agent session cancelled or ended by user hangup.")
 
     except Exception as e:
         logger.error(f"Error in agent session lifecycle: {e}")
