@@ -55,7 +55,7 @@ export default function Sidebar() {
             localStorage.setItem("workspace_id", wss[0].id);
           }
         } else {
-          router.push("/dashboard/onboarding");
+          // No workspaces yet — stay on /dashboard, user can create one
         }
       })
       .catch(() => {});

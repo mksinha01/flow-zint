@@ -20,7 +20,7 @@ export default function LoginPage() {
     try {
       if (mode === "register") {
         await register(form.name, form.email, form.password, "My Workspace");
-        router.push("/dashboard/workspace/new");
+        router.push("/dashboard");
       } else {
         await login(form.email, form.password);
         router.push("/dashboard");
