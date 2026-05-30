@@ -85,7 +85,7 @@ services:
     name: flow-zint-agent-worker
     runtime: python
     rootDir: ai-agent
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python agent.py download-files
     startCommand: python agent.py start
     envVars:
       - key: LIVEKIT_URL

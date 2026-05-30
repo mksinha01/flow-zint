@@ -33,6 +33,11 @@ export interface DispatchCallOptions {
  * If not running, it spawns it automatically in the background.
  */
 export const ensureAgentRunning = (): Promise<void> => {
+  if (env.NODE_ENV === 'production') {
+    logger.info('Skipping local agent check in production environment.');
+    return Promise.resolve();
+  }
+
   return new Promise((resolve) => {
     const socket = new net.Socket();
     socket.setTimeout(200);

@@ -250,9 +250,12 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
+    port_str = os.getenv("PORT")
+    port = int(port_str) if port_str else 8081
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
             agent_name="outbound-caller",
+            port=port,
         )
     )
