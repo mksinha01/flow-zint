@@ -396,34 +396,27 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"participant joined: {participant.identity}")
         agent.set_participant(participant)
 
-        # Keep the session running until the user hangs up or session ends
+        # Keep the session running until the user hangs up or room disconnects
         disconnect_event = asyncio.Event()
 
-        @ctx.room.on("participant_disconnected")
         def on_participant_disconnected(p: rtc.RemoteParticipant):
             if p.identity == participant.identity:
                 logger.info(f"Participant {p.identity} disconnected. Ending session.")
                 disconnect_event.set()
 
-        @ctx.room.on("disconnected")
-        def on_room_disconnected():
-            logger.info("Room disconnected. Ending session.")
+        def on_room_disconnected(reason=None):
+            logger.info(f"Room disconnected (reason={reason}). Ending session.")
             disconnect_event.set()
+
+        ctx.room.on("participant_disconnected", on_participant_disconnected)
+        ctx.room.on("disconnected", on_room_disconnected)
 
         logger.info("Awaiting conversational session completion...")
         try:
-            # Wait for whichever comes first: explicit disconnect event OR session going inactive
-            done, pending = await asyncio.wait(
-                [
-                    asyncio.ensure_future(disconnect_event.wait()),
-                    asyncio.ensure_future(session.wait_for_inactive()),
-                ],
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            # Cancel whatever is still pending
-            for task in pending:
-                task.cancel()
-            logger.info("Session ended (disconnect or inactive detected).")
+            # Wait for disconnect with a 1-hour safety timeout
+            await asyncio.wait_for(disconnect_event.wait(), timeout=3600)
+        except asyncio.TimeoutError:
+            logger.warning("Session timed out after 1 hour.")
         except asyncio.CancelledError:
             logger.info("Agent session cancelled.")
         
